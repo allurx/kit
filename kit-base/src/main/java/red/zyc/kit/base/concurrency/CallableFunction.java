@@ -13,30 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package red.zyc.kit.base.poller;
+package red.zyc.kit.base.concurrency;
+
+import java.util.function.Function;
 
 /**
- * Represents a function that accepts an input but does not produce an output.
+ * Represents a function that accepts an input and produces an output.
  *
- * <p>This interface extends {@link PollerFunction} with a type parameter of {@link Void} for the output. It defines a method {@link #run} that performs an operation using the input.</p>
+ * <p>This interface extends {@link Function} and {@link PollerFunction}, providing a default implementation of {@link PollerFunction#execute} using the {@link Function#apply} method.</p>
  *
- * @param <T> the type of the input to the function
+ * @param <A> the type of the input to the function
+ * @param <B> the type of the output from the function
  * @author allurx
+ * @see Function#apply
+ * @see PollerFunction
  */
 @FunctionalInterface
-public non-sealed interface RunnableFunction<T> extends PollerFunction<T, Void> {
-
-    /**
-     * Applies the input to the function.
-     *
-     * @param input the input to be processed
-     */
-    void run(T input);
+public non-sealed interface CallableFunction<A, B> extends Function<A, B>, PollerFunction<A, B> {
 
     @Override
-    default Void execute(T input) {
-        run(input);
-        return null;
+    default B execute(A input) {
+        return apply(input);
     }
-
 }

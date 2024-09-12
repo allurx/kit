@@ -17,15 +17,15 @@ package red.zyc.kit.base.test;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import red.zyc.kit.base.poller.CallableFunction;
-import red.zyc.kit.base.poller.Poller;
-import red.zyc.kit.base.poller.RunnableFunction;
+import red.zyc.kit.base.concurrency.CallableFunction;
+import red.zyc.kit.base.concurrency.Poller;
+import red.zyc.kit.base.concurrency.RunnableFunction;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static red.zyc.kit.base.poller.Poller.throwingRunnable;
+import static red.zyc.kit.base.concurrency.Poller.throwingRunnable;
 
 /**
  * Tests for the {@link Poller} class to validate its behavior with different functions and scenarios.
