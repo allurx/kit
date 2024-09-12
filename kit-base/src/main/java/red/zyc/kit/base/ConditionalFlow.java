@@ -62,7 +62,10 @@ import java.util.function.Supplier;
  * @param <T> the type of the result yielded by the conditions
  * @author allurx
  */
-public class ConditionalFlow<T> implements OptionalSupplier<T> {
+public final class ConditionalFlow<T> implements OptionalSupplier<T> {
+
+    private ConditionalFlow() {
+    }
 
     /**
      * The result of the conditional flow.
@@ -79,7 +82,7 @@ public class ConditionalFlow<T> implements OptionalSupplier<T> {
      *
      * @param condition the condition to evaluate
      * @param <T>       the type of result
-     * @return a new {@link IfBranch} instance
+     * @return a new {@link ConditionalFlow.IfBranch} instance
      */
     public static <T> ConditionalFlow<T>.IfBranch when(boolean condition) {
         return new ConditionalFlow<T>().new IfBranch(condition);
@@ -90,7 +93,7 @@ public class ConditionalFlow<T> implements OptionalSupplier<T> {
      *
      * @param booleanSupplier a supplier providing the condition
      * @param <T>             the type of result
-     * @return a new {@link IfBranch} instance
+     * @return a new {@link ConditionalFlow.IfBranch} instance
      */
     public static <T> ConditionalFlow<T>.IfBranch when(BooleanSupplier booleanSupplier) {
         return when(booleanSupplier.getAsBoolean());
@@ -120,6 +123,9 @@ public class ConditionalFlow<T> implements OptionalSupplier<T> {
         return Optional.ofNullable(result);
     }
 
+    /**
+     * if branch
+     */
     public class IfBranch extends AbstractBranch<ConditionalFlow<T>> {
 
         IfBranch(boolean branchHit) {
@@ -132,6 +138,9 @@ public class ConditionalFlow<T> implements OptionalSupplier<T> {
         }
     }
 
+    /**
+     * else if branch
+     */
     public class ElseIfBranch extends AbstractBranch<ConditionalFlow<T>> {
 
         ElseIfBranch(boolean branchHit) {
@@ -144,6 +153,9 @@ public class ConditionalFlow<T> implements OptionalSupplier<T> {
         }
     }
 
+    /**
+     * else branch
+     */
     public class ElseBranch extends AbstractBranch<ElseBranch> implements OptionalSupplier<T> {
 
         ElseBranch(boolean branchHit) {
@@ -161,6 +173,11 @@ public class ConditionalFlow<T> implements OptionalSupplier<T> {
         }
     }
 
+    /**
+     * An abstract base class for defining branches in the conditional flow.
+     *
+     * @param <C> the type of context returned by branch methods
+     */
     private abstract class AbstractBranch<C> implements Branch<T, C> {
 
         final boolean branchHit;
