@@ -22,6 +22,7 @@ module red.zyc.kit.base.test {
     requires red.zyc.kit.base;
     requires org.junit.jupiter.api;
     requires jmh.core;
+    requires java.net.http;
     exports red.zyc.kit.base.test;
     exports red.zyc.kit.base.jmh;
     opens red.zyc.kit.base.jmh;

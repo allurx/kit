@@ -24,9 +24,8 @@ import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Threads;
-import org.openjdk.jmh.annotations.Warmup;
-import red.zyc.kit.base.poller.Poller;
-import red.zyc.kit.base.poller.RunnableFunction;
+import red.zyc.kit.base.concurrency.Poller;
+import red.zyc.kit.base.concurrency.RunnableFunction;
 
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
@@ -39,8 +38,7 @@ import java.util.concurrent.TimeUnit;
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
 @State(Scope.Thread)
 @Threads(value = Threads.MAX)
-@Warmup(iterations = 3, time = 8)
-@Measurement(iterations = 3, time = 8)
+@Measurement(iterations = 3)
 public class PollerJmh {
 
     Poller<Void, Void> poller = Poller.<Void, Void>builder()

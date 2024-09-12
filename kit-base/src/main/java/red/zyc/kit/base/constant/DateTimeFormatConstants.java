@@ -24,7 +24,6 @@ package red.zyc.kit.base.constant;
 public final class DateTimeFormatConstants {
 
     private DateTimeFormatConstants() {
-        // Prevent instantiation
     }
 
     /**

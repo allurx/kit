@@ -26,7 +26,6 @@ import java.util.function.Predicate;
 public final class FunctionConstants {
 
     private FunctionConstants() {
-        // Prevent instantiation
     }
 
     /**
@@ -46,6 +45,6 @@ public final class FunctionConstants {
      * A {@link Predicate} that always returns {@code false}.
      * <p>This constant can be used in contexts where a {@link Predicate} is needed that should always evaluate to {@code false}.</p>
      */
-    public static final Predicate<Object> FALSE_PREDICATE = x -> false;
+    public static final Predicate<?> FALSE_PREDICATE = x -> false;
 
 }
