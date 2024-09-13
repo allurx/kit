@@ -83,8 +83,7 @@ public class ConditionalFlowJmh {
                         when(FunctionConstants.FALSE_PREDICATE.test(null)).yield(() -> "if")
                 .elseIf(() -> FunctionConstants.FALSE_PREDICATE.test(null)).yield(() -> "else if")
                 .orElse().yield(() -> "else")
-                .get()
-                .orElseThrow();
+                .get();
         blackhole.consume(result);
     }
 }

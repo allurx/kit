@@ -71,8 +71,7 @@ public class ConditionalFlowTest {
                 .elseIf(() -> true).yield(() -> 3)
                 .elseIf(() -> false).yield(() -> 4)
                 .orElse().yield(() -> 5)
-                .get()
-                .orElseThrow();
+                .get();
         Assertions.assertEquals(1, i);
     }
 

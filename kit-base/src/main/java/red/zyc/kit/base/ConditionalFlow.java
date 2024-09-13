@@ -15,9 +15,8 @@
  */
 package red.zyc.kit.base;
 
-import red.zyc.kit.base.function.OptionalSupplier;
+import red.zyc.kit.base.function.MultiOutputSupplier;
 
-import java.util.Optional;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
@@ -62,7 +61,7 @@ import java.util.function.Supplier;
  * @param <T> the type of the result yielded by the conditions
  * @author allurx
  */
-public final class ConditionalFlow<T> implements OptionalSupplier<T> {
+public final class ConditionalFlow<T> implements MultiOutputSupplier<T> {
 
     private ConditionalFlow() {
     }
@@ -119,8 +118,8 @@ public final class ConditionalFlow<T> implements OptionalSupplier<T> {
     }
 
     @Override
-    public Optional<T> get() {
-        return Optional.ofNullable(result);
+    public T get() {
+        return result;
     }
 
     /**
@@ -156,7 +155,7 @@ public final class ConditionalFlow<T> implements OptionalSupplier<T> {
     /**
      * else branch
      */
-    public class ElseBranch extends AbstractBranch<ElseBranch> implements OptionalSupplier<T> {
+    public class ElseBranch extends AbstractBranch<ElseBranch> implements MultiOutputSupplier<T> {
 
         ElseBranch(boolean branchHit) {
             super(branchHit);
@@ -168,7 +167,7 @@ public final class ConditionalFlow<T> implements OptionalSupplier<T> {
         }
 
         @Override
-        public Optional<T> get() {
+        public T get() {
             return ConditionalFlow.this.get();
         }
     }
