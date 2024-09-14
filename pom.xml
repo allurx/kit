@@ -4,7 +4,7 @@
 
     <groupId>red.zyc.kit</groupId>
     <artifactId>kit</artifactId>
-    <version>1.0.1</version>
+    <version>1.0.2</version>
     <packaging>pom</packaging>
     <name>kit</name>
 
@@ -15,10 +15,12 @@
         <module>kit-base</module>
         <module>kit-json</module>
         <module>kit-mybatis</module>
+        <module>kit-selenium</module>
     </modules>
 
     <properties>
         <gson.version>2.11.0</gson.version>
+        <logback.version>1.5.7</logback.version>
         <maven.compiler.source.version>21</maven.compiler.source.version>
         <maven.compiler.target.version>21</maven.compiler.target.version>
         <jackson-bom.version>2.17.2</jackson-bom.version>
@@ -33,6 +35,7 @@
         <maven-gpg-plugin.version>3.2.5</maven-gpg-plugin.version>
         <maven-central-publishing-plugin.version>0.5.0</maven-central-publishing-plugin.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <selenium-java.version>4.23.0</selenium-java.version>
     </properties>
 
     <licenses>
@@ -122,6 +125,14 @@
                 <artifactId>jmh-generator-annprocess</artifactId>
                 <version>${jmh-generator-annprocess.version}</version>
             </dependency>
+
+            <!-- selenium -->
+            <dependency>
+                <groupId>org.seleniumhq.selenium</groupId>
+                <artifactId>selenium-java</artifactId>
+                <version>${selenium-java.version}</version>
+            </dependency>
+
         </dependencies>
     </dependencyManagement>
 
