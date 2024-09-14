@@ -40,7 +40,7 @@ import java.util.function.Predicate;
  *     Poller.<Void, Void>builder()
  *              .timing(Duration.ofSeconds(10), Duration.ofMillis(500))
  *              .<RunnableFunction<Void>>execute(null, o -> System.out.println(LocalDateTime.now()))
- *              .predicate(o -> false)
+ *              .until(o -> false)
  *              .onTimeout(throwingRunnable(() -> new RuntimeException("Timeout")))
  *              .build()
  *              .poll();
@@ -58,7 +58,7 @@ import java.util.function.Predicate;
  *                     System.out.println(num.get());
  *                     return num.getAndIncrement();
  *                 })
- *                 .predicate(o -> o == 12)
+ *                 .until(o -> o == 12)
  *                 .onTimeout(throwingRunnable(() -> new RuntimeException("Timeout")))
  *                 .build()
  *                 .poll();
