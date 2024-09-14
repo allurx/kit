@@ -46,7 +46,7 @@ public class PollerTest {
                 () -> Poller.<Void, Void>builder()
                         .timing(Duration.ofSeconds(10), Duration.ofMillis(500))
                         .<RunnableFunction<Void>>execute(null, o -> System.out.println(LocalDateTime.now()))
-                        .predicate(o -> false)
+                        .until(o -> false)
                         .onTimeout(throwingRunnable(() -> new RuntimeException("Timeout")))
                         .build()
                         .poll(), "Expected RuntimeException due to the false predicate.");
@@ -65,7 +65,7 @@ public class PollerTest {
                     System.out.println(num.get());
                     return num.incrementAndGet();
                 })
-                .predicate(o -> o == 12)
+                .until(o -> o == 12)
                 .onTimeout(throwingRunnable(() -> new RuntimeException("Timeout")))
                 .build()
                 .poll();

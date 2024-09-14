@@ -45,7 +45,7 @@ public class PollerJmh {
             .timing(Duration.ofSeconds(3), Duration.ofMillis(500))
             .<RunnableFunction<Void>>execute(null, input -> {
             })
-            .predicate(o -> false)
+            .until(o -> false)
             .build();
 
     @Benchmark

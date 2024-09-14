@@ -290,7 +290,7 @@ public class Poller<A, B> {
          * @param predicate {@link Poller#predicate}
          * @return the {@link Builder} instance for method chaining
          */
-        public Builder<A, B> predicate(Predicate<B> predicate) {
+        public Builder<A, B> until(Predicate<B> predicate) {
             poller.predicate = predicate;
             return this;
         }
