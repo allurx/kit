@@ -120,6 +120,11 @@ public final class Chrome implements AutoCloseable {
 
         private final Chrome chrome;
 
+        /**
+         * Constructs a new {@code ChromeBuilder} with the specified {@link Chrome} instance.
+         *
+         * @param chrome the {@link Chrome} instance to be used by this builder
+         */
         public ChromeBuilder(Chrome chrome) {
             this.chrome = chrome;
         }

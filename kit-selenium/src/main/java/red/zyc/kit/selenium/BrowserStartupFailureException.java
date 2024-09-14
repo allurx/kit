@@ -16,11 +16,20 @@
 package red.zyc.kit.selenium;
 
 /**
+ * Exception thrown when the browser fails to start.
+ * Inherits from {@link BrowserException}.
+ *
  * @author allurx
  */
 public class BrowserStartupFailureException extends BrowserException {
 
+    /**
+     * Constructs a new {@code BrowserStartupFailureException} with the specified detail message.
+     *
+     * @param message the detail message
+     */
     public BrowserStartupFailureException(String message) {
         super(message);
     }
 }
+

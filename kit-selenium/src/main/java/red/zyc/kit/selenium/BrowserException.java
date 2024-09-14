@@ -16,15 +16,30 @@
 package red.zyc.kit.selenium;
 
 /**
+ * Exception thrown when there is an issue related to browser operations.
+ * Extends {@link RuntimeException} to provide unchecked exception handling.
+ *
  * @author allurx
  */
 public class BrowserException extends RuntimeException {
 
+    /**
+     * Constructs a new {@code BrowserException} with the specified detail message and cause.
+     *
+     * @param message the detail message
+     * @param cause   the cause of the exception
+     */
     public BrowserException(String message, Throwable cause) {
         super(message, cause);
     }
 
+    /**
+     * Constructs a new {@code BrowserException} with the specified detail message.
+     *
+     * @param message the detail message
+     */
     public BrowserException(String message) {
         super(message);
     }
 }
+
