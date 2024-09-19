@@ -50,7 +50,7 @@ public class PollerJmh {
 
     @Benchmark
     public void run() {
-        poller.poll();
+        poller.get();
     }
 
 }

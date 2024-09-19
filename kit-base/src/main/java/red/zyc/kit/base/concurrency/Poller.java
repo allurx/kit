@@ -15,6 +15,7 @@
  */
 package red.zyc.kit.base.concurrency;
 
+import red.zyc.kit.base.function.MultiOutputSupplier;
 import red.zyc.kit.base.function.ThrowableSupplier;
 
 import java.time.Clock;
@@ -22,7 +23,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.function.Predicate;
 
 /**
@@ -43,7 +43,7 @@ import java.util.function.Predicate;
  *              .until(o -> false)
  *              .onTimeout(throwingRunnable(() -> new RuntimeException("Timeout")))
  *              .build()
- *              .poll();
+ *              .get();
  * }
  * </pre>
  * <p style="color: #4682B4;font-weight: bold;">
@@ -61,7 +61,7 @@ import java.util.function.Predicate;
  *                 .until(o -> o == 12)
  *                 .onTimeout(throwingRunnable(() -> new RuntimeException("Timeout")))
  *                 .build()
- *                 .poll();
+ *                 .get();
  * }
  * </pre>
  *
@@ -69,7 +69,7 @@ import java.util.function.Predicate;
  * @param <B> the output type of the polling function
  * @author allurx
  */
-public class Poller<A, B> {
+public class Poller<A, B> implements MultiOutputSupplier<B> {
 
     private static final System.Logger LOGGER = System.getLogger(Poller.class.getName());
 
@@ -122,12 +122,13 @@ public class Poller<A, B> {
     private final List<Class<? extends Throwable>> ignoredExceptions = new ArrayList<>();
 
     /**
-     * Starts the polling process and returns the result.
+     * Starts the poll process and returns the result.
      *
-     * @return an {@link Optional} containing the output of {@link #function}, or empty if polling did not succeed
+     * @return the output of {@link #function}, or empty if poll did not succeed
      */
-    public Optional<B> poll() {
-        return polling();
+    @Override
+    public B get() {
+        return poll();
     }
 
     /**
@@ -159,8 +160,8 @@ public class Poller<A, B> {
     /**
      * Performs the polling process
      */
-    private Optional<B> polling() {
-        PollResult result = new PollResult();
+    private B poll() {
+        var result = new PollResult();
         Instant endInstant = clock.instant().plus(duration);
         for (; ; ) {
 
@@ -180,7 +181,7 @@ public class Poller<A, B> {
             // Pause before the next polling attempt
             sleeper.sleep(interval);
         }
-        return Optional.ofNullable(result.output);
+        return result.output;
     }
 
     /**

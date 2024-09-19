@@ -49,7 +49,7 @@ public class PollerTest {
                         .until(o -> false)
                         .onTimeout(throwingRunnable(() -> new RuntimeException("Timeout")))
                         .build()
-                        .poll(), "Expected RuntimeException due to the false predicate.");
+                        .get(), "Expected RuntimeException due to the false predicate.");
     }
 
     /**
@@ -59,7 +59,7 @@ public class PollerTest {
     @Test
     void call() {
         AtomicInteger num = new AtomicInteger(1);
-        Poller.<AtomicInteger, Integer>builder()
+        var n = Poller.<AtomicInteger, Integer>builder()
                 .timing(Duration.ofSeconds(10), Duration.ofMillis(500))
                 .<CallableFunction<AtomicInteger, Integer>>execute(num, i -> {
                     System.out.println(num.get());
@@ -68,8 +68,9 @@ public class PollerTest {
                 .until(o -> o == 12)
                 .onTimeout(throwingRunnable(() -> new RuntimeException("Timeout")))
                 .build()
-                .poll();
+                .get();
 
+        Assertions.assertEquals(n, num.get());
         Assertions.assertEquals(12, num.get(), "Expected AtomicInteger to reach the value 12.");
     }
 
