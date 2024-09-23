@@ -28,8 +28,7 @@ import java.util.function.Supplier;
  * Example usage:
  * <pre>
  *     {@code
- *         ConditionalFlow.when(condition)
- *                 .run(() -> System.out.println("if"))
+ *                  when(condition).run(() -> System.out.println("if"))
  *                 .elseIf(condition).run(() -> System.out.println("else if"))
  *                 .orElse().run(() -> System.out.println("else"));
  *     }
@@ -47,11 +46,9 @@ import java.util.function.Supplier;
  * }
  * </pre>
  * The class supports short-circuit evaluation:
- * <ul>
- *     <li>Once a condition in {@link #when} or {@link #elseIf} evaluates to true, subsequent conditions and actions are skipped.</li>
- *     <li>{@link #when} is evaluated only once, allowing for performance optimizations.</li>
- *     <li>{@link #elseIf} uses a {@link BooleanSupplier} to defer condition evaluation, managing performance and security concerns.</li>
- * </ul>
+ * <p>
+ * Once a condition in {@link Branch} evaluates to true, subsequent conditions and actions are skipped.
+ * <p>
  * Note on Thread Safety:
  * <p>
  * This class is not thread-safe. If instances of ConditionalFlow are accessed by multiple threads concurrently,
@@ -61,7 +58,7 @@ import java.util.function.Supplier;
  * @param <T> the type of the result yielded by the conditions
  * @author allurx
  */
-public final class ConditionalFlow<T> implements MultiOutputSupplier<T> {
+public final class ConditionalFlow<T> {
 
     private ConditionalFlow() {
     }
@@ -76,149 +73,103 @@ public final class ConditionalFlow<T> implements MultiOutputSupplier<T> {
      */
     private boolean hit = false;
 
-    /**
-     * Starts a new conditional flow with the given condition.
-     *
-     * @param condition the condition to evaluate
-     * @param <T>       the type of result
-     * @return a new {@link ConditionalFlow.IfBranch} instance
-     */
+
     public static <T> ConditionalFlow<T>.IfBranch when(boolean condition) {
         return new ConditionalFlow<T>().new IfBranch(condition);
     }
 
-    /**
-     * Starts a new conditional flow with a condition provided by a {@link BooleanSupplier}.
-     *
-     * @param booleanSupplier a supplier providing the condition
-     * @param <T>             the type of result
-     * @return a new {@link ConditionalFlow.IfBranch} instance
-     */
     public static <T> ConditionalFlow<T>.IfBranch when(BooleanSupplier booleanSupplier) {
         return when(booleanSupplier.getAsBoolean());
     }
 
-    /**
-     * Creates an {@link ElseIfBranch} if the previous conditions were not met and the provided condition evaluates to true.
-     *
-     * @param booleanSupplier a supplier providing the condition
-     * @return a new {@link ElseIfBranch} instance
-     */
-    public ElseIfBranch elseIf(BooleanSupplier booleanSupplier) {
-        return new ElseIfBranch(!hit && booleanSupplier.getAsBoolean());
-    }
-
-    /**
-     * Creates an {@link ElseBranch} if none of the previous conditions were met.
-     *
-     * @return a new {@link ElseBranch} instance
-     */
-    public ElseBranch orElse() {
-        return new ElseBranch(!hit);
-    }
-
-    @Override
-    public T get() {
-        return result;
-    }
-
-    /**
-     * if branch
-     */
-    public class IfBranch extends AbstractBranch<ConditionalFlow<T>> {
+    public class IfBranch extends DerivableBranch<IfBranch> {
 
         IfBranch(boolean branchHit) {
             super(branchHit);
         }
 
-        @Override
-        ConditionalFlow<T> context() {
-            return ConditionalFlow.this;
-        }
     }
 
-    /**
-     * else if branch
-     */
-    public class ElseIfBranch extends AbstractBranch<ConditionalFlow<T>> {
+    public class ElseIfBranch extends DerivableBranch<ElseIfBranch> {
 
         ElseIfBranch(boolean branchHit) {
             super(branchHit);
         }
 
-        @Override
-        ConditionalFlow<T> context() {
-            return ConditionalFlow.this;
-        }
     }
 
-    /**
-     * else branch
-     */
-    public class ElseBranch extends AbstractBranch<ElseBranch> implements MultiOutputSupplier<T> {
+    public class ElseBranch extends BaseBranch<ElseBranch> {
 
         ElseBranch(boolean branchHit) {
             super(branchHit);
         }
+    }
 
-        @Override
-        ElseBranch context() {
-            return this;
+    private class DerivableBranch<B> extends BaseBranch<B> {
+
+        DerivableBranch(boolean branchHit) {
+            super(branchHit);
         }
 
-        @Override
-        public T get() {
-            return ConditionalFlow.this.get();
+        public ElseIfBranch elseIf(BooleanSupplier booleanSupplier) {
+            return new ElseIfBranch(!hit && booleanSupplier.getAsBoolean());
+        }
+
+        public ElseBranch orElse() {
+            return new ElseBranch(!hit);
         }
     }
 
-    /**
-     * An abstract base class for defining branches in the conditional flow.
-     *
-     * @param <C> the type of context returned by branch methods
-     */
-    private abstract class AbstractBranch<C> implements Branch<T, C> {
+    private class BaseBranch<B> implements Branch<T, B> {
 
         final boolean branchHit;
 
-        AbstractBranch(boolean branchHit) {
-            if (branchHit) ConditionalFlow.this.hit = true;
+        BaseBranch(boolean branchHit) {
+            if (branchHit) hit = true;
             this.branchHit = branchHit;
         }
 
         @Override
-        public C run(Runnable runnable) {
+        public B run(Runnable runnable) {
             if (branchHit) runnable.run();
-            return context();
+            return self();
         }
 
         @Override
-        public C supply(Supplier<? extends T> supplier) {
-            if (branchHit) ConditionalFlow.this.result = supplier.get();
-            return context();
+        public B supply(Supplier<? extends T> supplier) {
+            if (branchHit) result = supplier.get();
+            return self();
         }
 
         @Override
-        public <X extends Throwable> C throwIt(Supplier<? extends X> supplier) throws X {
+        public <X extends Throwable> B throwIt(Supplier<? extends X> supplier) throws X {
             if (branchHit) throw supplier.get();
-            return context();
+            return self();
         }
 
-        abstract C context();
+        @Override
+        public T get() {
+            return result;
+        }
+
+        /**
+         * 不要保存自身的引用，否则jvm无法及时回收，导致{@link ConditionalFlow}性能急速下降
+         *
+         * @return 自身
+         */
+        @SuppressWarnings("unchecked")
+        private B self() {
+            return (B) this;
+        }
+
     }
 
-    /**
-     * Defines branch operations in the conditional flow.
-     *
-     * @param <R> the type of result yielded by the branch
-     * @param <C> the type of context returned by branch methods
-     */
-    private interface Branch<R, C> {
+    private interface Branch<R, B> extends MultiOutputSupplier<R> {
 
-        C run(Runnable runnable);
+        B run(Runnable runnable);
 
-        C supply(Supplier<? extends R> supplier);
+        B supply(Supplier<? extends R> supplier);
 
-        <X extends Throwable> C throwIt(Supplier<? extends X> supplier) throws X;
+        <X extends Throwable> B throwIt(Supplier<? extends X> supplier) throws X;
     }
 }

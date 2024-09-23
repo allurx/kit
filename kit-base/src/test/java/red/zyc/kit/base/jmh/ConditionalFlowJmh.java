@@ -31,6 +31,8 @@ import red.zyc.kit.base.constant.FunctionConstants;
 
 import java.util.concurrent.TimeUnit;
 
+import static red.zyc.kit.base.ConditionalFlow.when;
+
 /**
  * Benchmark tests comparing native if-else constructs with the ConditionalFlow class implementation.
  * This class uses the JMH framework to measure throughput in operations per millisecond.
@@ -79,8 +81,8 @@ public class ConditionalFlowJmh {
      */
     @Benchmark
     public void testConditionalFlow(Blackhole blackhole) {
-        var result = ConditionalFlow.<String>
-                        when(FunctionConstants.FALSE_PREDICATE.test(null)).supply(() -> "if")
+        var result
+                = when(FunctionConstants.FALSE_PREDICATE.test(null)).supply(() -> "if")
                 .elseIf(() -> FunctionConstants.FALSE_PREDICATE.test(null)).supply(() -> "else if")
                 .orElse().supply(() -> "else")
                 .get();
