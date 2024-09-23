@@ -80,9 +80,9 @@ public class ConditionalFlowJmh {
     @Benchmark
     public void testConditionalFlow(Blackhole blackhole) {
         var result = ConditionalFlow.<String>
-                        when(FunctionConstants.FALSE_PREDICATE.test(null)).yield(() -> "if")
-                .elseIf(() -> FunctionConstants.FALSE_PREDICATE.test(null)).yield(() -> "else if")
-                .orElse().yield(() -> "else")
+                        when(FunctionConstants.FALSE_PREDICATE.test(null)).supply(() -> "if")
+                .elseIf(() -> FunctionConstants.FALSE_PREDICATE.test(null)).supply(() -> "else if")
+                .orElse().supply(() -> "else")
                 .get();
         blackhole.consume(result);
     }

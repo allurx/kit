@@ -20,24 +20,10 @@ package red.zyc.kit.base.concurrency;
  *
  * <p>Defines the contract for functions that can be used by a {@link Poller}. Implementations must provide the actual execution logic.</p>
  *
- * @param <A> the type of the input to the function
- * @param <B> the type of the output of the function
  * @author allurx
  * @see RunnableFunction
  * @see CallableFunction
  */
-public sealed interface PollerFunction<A, B> permits RunnableFunction, CallableFunction {
+public sealed interface PollerFunction permits RunnableFunction, CallableFunction {
 
-    /**
-     * Executes the function with the given input.
-     *
-     * <p>Implementations must provide the specific logic for this method.</p>
-     *
-     * @param input the input for the function
-     * @return the output of the function
-     * @throws IllegalStateException if the method is not properly implemented
-     */
-    default B execute(A input) {
-        throw new IllegalStateException("%s must implement this method to perform the actual function".formatted(getClass().getName()));
-    }
 }

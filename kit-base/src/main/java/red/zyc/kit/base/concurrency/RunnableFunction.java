@@ -20,23 +20,15 @@ package red.zyc.kit.base.concurrency;
  *
  * <p>This interface extends {@link PollerFunction} with a type parameter of {@link Void} for the output. It defines a method {@link #run} that performs an operation using the input.</p>
  *
- * @param <T> the type of the input to the function
  * @author allurx
  */
 @FunctionalInterface
-public non-sealed interface RunnableFunction<T> extends PollerFunction<T, Void> {
+public non-sealed interface RunnableFunction extends PollerFunction {
 
     /**
      * Applies the input to the function.
      *
-     * @param input the input to be processed
      */
-    void run(T input);
-
-    @Override
-    default Void execute(T input) {
-        run(input);
-        return null;
-    }
+    void run();
 
 }

@@ -15,18 +15,28 @@
  */
 package red.zyc.kit.base.concurrency;
 
-import red.zyc.kit.base.function.MultiOutputSupplier;
-
-import java.util.function.Function;
-import java.util.function.Predicate;
-
 /**
  * @author allurx
  */
-public interface Poller<A, B> extends MultiOutputSupplier<B> {
+public class CountBasedPoller<A, B> extends AbstractPoller<A, B, CountBasedPoller<A, B>> {
 
-    Poller<A, B> apply(A input, Function<? super A, ? extends B> function);
+    /**
+     * 函数最多能够执行的次数
+     */
+    protected int count;
 
-    Poller<A, B> until(Predicate<? super B> predicate);
+    @Override
+    public B polling() {
+        B output = null;
+        for (int i = 0; i < count; i++) {
+            output = execute();
+            if (predicate.test(output)) return output;
+        }
+        return output;
+    }
 
+    public CountBasedPoller<A, B> count(int count) {
+        this.count = count;
+        return this;
+    }
 }

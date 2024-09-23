@@ -193,13 +193,13 @@ public final class ConditionalFlow<T> implements MultiOutputSupplier<T> {
         }
 
         @Override
-        public C yield(Supplier<? extends T> supplier) {
+        public C supply(Supplier<? extends T> supplier) {
             if (branchHit) ConditionalFlow.this.result = supplier.get();
             return context();
         }
 
         @Override
-        public <X extends Throwable> C throwException(Supplier<? extends X> supplier) throws X {
+        public <X extends Throwable> C throwIt(Supplier<? extends X> supplier) throws X {
             if (branchHit) throw supplier.get();
             return context();
         }
@@ -217,8 +217,8 @@ public final class ConditionalFlow<T> implements MultiOutputSupplier<T> {
 
         C run(Runnable runnable);
 
-        C yield(Supplier<? extends R> supplier);
+        C supply(Supplier<? extends R> supplier);
 
-        <X extends Throwable> C throwException(Supplier<? extends X> supplier) throws X;
+        <X extends Throwable> C throwIt(Supplier<? extends X> supplier) throws X;
     }
 }

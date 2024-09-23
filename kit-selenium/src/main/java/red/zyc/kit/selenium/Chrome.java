@@ -222,7 +222,7 @@ public final class Chrome implements AutoCloseable {
          */
         public Chrome build() {
             try {
-                when(chrome.mode == null).throwException(() -> new IllegalStateException("Chrome mode not set"));
+                when(chrome.mode == null).throwIt(() -> new IllegalStateException("Chrome mode not set"));
                 switch (chrome.mode) {
                     case ATTACH -> {
 

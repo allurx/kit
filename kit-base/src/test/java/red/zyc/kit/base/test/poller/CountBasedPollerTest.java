@@ -13,20 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package red.zyc.kit.base.concurrency;
+package red.zyc.kit.base.test.poller;
 
-import red.zyc.kit.base.function.MultiOutputSupplier;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import red.zyc.kit.base.concurrency.CountBasedPoller;
 
-import java.util.function.Function;
-import java.util.function.Predicate;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * @author allurx
  */
-public interface Poller<A, B> extends MultiOutputSupplier<B> {
+public class CountBasedPollerTest {
 
-    Poller<A, B> apply(A input, Function<? super A, ? extends B> function);
-
-    Poller<A, B> until(Predicate<? super B> predicate);
-
+    @Test
+    void test() {
+        var num = new CountBasedPoller<AtomicInteger, Integer>()
+                .count(10)
+                .apply(new AtomicInteger(1), AtomicInteger::incrementAndGet)
+                .until(o -> o == 6)
+                .get();
+        Assertions.assertEquals(6, num);
+    }
 }

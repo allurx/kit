@@ -29,10 +29,8 @@ import java.util.function.Function;
  * @see PollerFunction
  */
 @FunctionalInterface
-public non-sealed interface CallableFunction<A, B> extends Function<A, B>, PollerFunction<A, B> {
+public non-sealed interface CallableFunction<A, B> extends PollerFunction {
 
-    @Override
-    default B execute(A input) {
-        return apply(input);
-    }
+    B execute(A input);
+
 }
