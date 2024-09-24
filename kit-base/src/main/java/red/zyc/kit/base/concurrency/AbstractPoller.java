@@ -31,13 +31,10 @@ public abstract class AbstractPoller<S extends AbstractPoller<S>> implements Pol
     protected List<Class<? extends Throwable>> ignoredExceptions = new ArrayList<>();
     protected System.Logger logger = System.getLogger(getClass().getName());
 
-    @Override
-    public <A, B> PollResult<B> poll(A input,
-                                     Function<? super A, ? extends B> function,
-                                     Predicate<? super B> predicate) {
-        return polling(input,
-                Objects.requireNonNull(function, "The Function cannot be null"),
-                Objects.requireNonNull(predicate, "The Predicate used to test the output of the Function cannot be null"));
+    public <A, B> void check(Function<? super A, ? extends B> function,
+                             Predicate<? super B> predicate) {
+        Objects.requireNonNull(function, "The Function cannot be null");
+        Objects.requireNonNull(predicate, "The Predicate used to test the output of the Function cannot be null");
     }
 
     public S ignoreExceptions(Class<? extends Throwable> ignoredException) {
@@ -55,14 +52,10 @@ public abstract class AbstractPoller<S extends AbstractPoller<S>> implements Pol
         return uncheckedCast(this);
     }
 
-    abstract <A, B> PollResult<B> polling(A input,
-                                          Function<? super A, ? extends B> function,
-                                          Predicate<? super B> predicate);
-
     /**
      * 执行函数
      */
-    protected <A, B> B execute(A input, Function<? super A, ? extends B> function) {
+    public <A, B> B execute(A input, Function<? super A, ? extends B> function) {
         try {
             return function.apply(input);
         } catch (Throwable t) {

@@ -36,9 +36,9 @@ public class IntervalBasedPoller extends AbstractPoller<IntervalBasedPoller> {
     protected Runnable timeoutAction = FunctionConstants.EMPTY_RUNNABLE;
 
     @Override
-    public <A, B> PollResult<B> polling(A input,
-                                        Function<? super A, ? extends B> function,
-                                        Predicate<? super B> predicate) {
+    public <A, B> PollResult<B> poll(A input,
+                                     Function<? super A, ? extends B> function,
+                                     Predicate<? super B> predicate) {
         int cnt = 0;
         B result;
         Instant endInstant = clock.instant().plus(duration);

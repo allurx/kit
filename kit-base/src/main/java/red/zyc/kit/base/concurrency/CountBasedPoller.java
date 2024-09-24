@@ -29,9 +29,9 @@ public class CountBasedPoller extends AbstractPoller<CountBasedPoller> {
     protected int count;
 
     @Override
-    public <A, B> PollResult<B> polling(A input,
-                                        Function<? super A, ? extends B> function,
-                                        Predicate<? super B> predicate) {
+    public <A, B> PollResult<B> poll(A input,
+                                     Function<? super A, ? extends B> function,
+                                     Predicate<? super B> predicate) {
         int cnt = 0;
         B result = null;
         for (int i = 0; i < count; i++) {
