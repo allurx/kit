@@ -18,31 +18,50 @@ package red.zyc.kit.base.test.poller;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import red.zyc.kit.base.concurrency.IntervalBasedPoller;
+import red.zyc.kit.base.constant.FunctionConstants;
 
 import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.LockSupport;
 
 /**
  * @author allurx
  */
 public class IntervalBasedPollerTest {
 
-    @Test
-    void test() {
-        var num = new IntervalBasedPoller()
-                .timing(Duration.ofSeconds(10), Duration.ofMillis(500))
-                .onTimeout(() -> {
-                    throw new RuntimeException("timeout");
-                })
-                .poll(new AtomicInteger(1),
-                        i -> {
-                            System.out.println(i);
-                            return i.incrementAndGet();
-                        },
-                        o -> o == 12)
-                .get();
+    IntervalBasedPoller poller = new IntervalBasedPoller()
+            .timing(Duration.ofSeconds(3), Duration.ofMillis(300))
+            .onTimeout(() -> {
+                throw new RuntimeException("timeout");
+            });
 
-        Assertions.assertEquals(12, num);
+    @Test
+    void apply() {
+        var num = poller.poll(new AtomicInteger(0),
+                AtomicInteger::incrementAndGet,
+                i -> i == 6).get();
+        Assertions.assertEquals(6, num);
+    }
+
+    @Test
+    void consume() {
+        var ai = new AtomicInteger(0);
+        poller.poll(ai, i -> System.out.println(i.getAndIncrement()), () -> ai.get() == 6);
+        Assertions.assertEquals(6, ai.get());
+    }
+
+    @Test
+    void run() {
+        var ai = new AtomicInteger(0);
+        poller.poll(() -> System.out.println(ai.getAndIncrement()), () -> ai.get() == 6);
+        Assertions.assertEquals(6, ai.get());
+    }
+
+    @Test
+    void timeout() {
+        Assertions.assertThrowsExactly(RuntimeException.class,
+                () -> poller.poll(() -> LockSupport.parkNanos(TimeUnit.SECONDS.toNanos(4)), FunctionConstants.FALSE_SUPPLIER));
     }
 
 }

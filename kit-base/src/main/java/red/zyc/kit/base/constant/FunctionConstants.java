@@ -15,6 +15,7 @@
  */
 package red.zyc.kit.base.constant;
 
+import java.util.function.BooleanSupplier;
 import java.util.function.Predicate;
 
 import static red.zyc.kit.base.reflection.TypeConverter.uncheckedCast;
@@ -34,6 +35,16 @@ public final class FunctionConstants {
      */
     public static final Runnable EMPTY_RUNNABLE = () -> {
     };
+
+    /**
+     * A {@link BooleanSupplier} that always returns {@code true}.
+     */
+    public static final BooleanSupplier TRUE_SUPPLIER = () -> true;
+
+    /**
+     * A {@link BooleanSupplier} that always returns {@code false}.
+     */
+    public static final BooleanSupplier FALSE_SUPPLIER = () -> false;
 
     /**
      * A {@link Predicate} that always returns {@code true}.

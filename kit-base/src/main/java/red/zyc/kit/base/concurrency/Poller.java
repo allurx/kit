@@ -17,6 +17,8 @@ package red.zyc.kit.base.concurrency;
 
 import red.zyc.kit.base.function.MultiOutputSupplier;
 
+import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -28,6 +30,19 @@ public interface Poller {
     <A, B> PollResult<B> poll(A input,
                               Function<? super A, ? extends B> function,
                               Predicate<? super B> predicate);
+
+    default <T> void poll(T input,
+                             Consumer<? super T> consumer,
+                             BooleanSupplier booleanSupplier) {
+        poll(() -> consumer.accept(input), booleanSupplier);
+    }
+
+    default void poll(Runnable runnable, BooleanSupplier booleanSupplier) {
+        poll(null, unused -> {
+            runnable.run();
+            return null;
+        }, unused -> booleanSupplier.getAsBoolean());
+    }
 
     /**
      * @param count  轮询次数

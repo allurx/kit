@@ -26,14 +26,27 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class CountBasedPollerTest {
 
+    CountBasedPoller poller = new CountBasedPoller().count(100);
+
     @Test
-    void test() {
-        var num = new CountBasedPoller()
-                .count(10)
-                .poll(new AtomicInteger(1),
-                        AtomicInteger::incrementAndGet,
-                        o -> o == 6)
-                .get();
+    void apply() {
+        var num = poller.poll(new AtomicInteger(0),
+                AtomicInteger::incrementAndGet,
+                i -> i == 6).get();
         Assertions.assertEquals(6, num);
+    }
+
+    @Test
+    void consume() {
+        var ai = new AtomicInteger(0);
+        poller.poll(ai, i -> System.out.println(i.getAndIncrement()), () -> ai.get() == 6);
+        Assertions.assertEquals(6, ai.get());
+    }
+
+    @Test
+    void run() {
+        var ai = new AtomicInteger(0);
+        poller.poll(() -> System.out.println(ai.getAndIncrement()), () -> ai.get() == 6);
+        Assertions.assertEquals(6, ai.get());
     }
 }

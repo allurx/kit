@@ -31,8 +31,8 @@ public abstract class AbstractPoller<S extends AbstractPoller<S>> implements Pol
     protected List<Class<? extends Throwable>> ignoredExceptions = new ArrayList<>();
     protected System.Logger logger = System.getLogger(getClass().getName());
 
-    public <A, B> void check(Function<? super A, ? extends B> function,
-                             Predicate<? super B> predicate) {
+    protected <A, B> void check(Function<? super A, ? extends B> function,
+                                Predicate<? super B> predicate) {
         Objects.requireNonNull(function, "The Function cannot be null");
         Objects.requireNonNull(predicate, "The Predicate used to test the output of the Function cannot be null");
     }
@@ -55,7 +55,7 @@ public abstract class AbstractPoller<S extends AbstractPoller<S>> implements Pol
     /**
      * 执行函数
      */
-    public <A, B> B execute(A input, Function<? super A, ? extends B> function) {
+    protected <A, B> B execute(A input, Function<? super A, ? extends B> function) {
         try {
             return function.apply(input);
         } catch (Throwable t) {
