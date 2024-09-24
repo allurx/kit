@@ -30,6 +30,6 @@ public final class DateTimeFormatConstants {
      * The date and time format pattern for "yyyy-MM-dd HH:mm:ss".
      * <p>This format represents date and time with year, month, day, hour, minute, and second.</p>
      */
-    public static final String YYYY_MM_DD_HH_MM_SS_FORMAT = "yyyy-MM-dd HH:mm:ss";
+    public static final String YYYY_MM_DD_HH_MM_SS = "yyyy-MM-dd HH:mm:ss";
 
 }

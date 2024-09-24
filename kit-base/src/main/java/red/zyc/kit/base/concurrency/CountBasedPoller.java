@@ -15,10 +15,13 @@
  */
 package red.zyc.kit.base.concurrency;
 
+import java.util.function.Function;
+import java.util.function.Predicate;
+
 /**
  * @author allurx
  */
-public class CountBasedPoller<A, B> extends AbstractPoller<A, B, CountBasedPoller<A, B>> {
+public class CountBasedPoller extends AbstractPoller<CountBasedPoller> {
 
     /**
      * 函数最多能够执行的次数
@@ -26,16 +29,19 @@ public class CountBasedPoller<A, B> extends AbstractPoller<A, B, CountBasedPolle
     protected int count;
 
     @Override
-    public B polling() {
-        B output = null;
+    public <A, B> PollResult<B> polling(A input,
+                                        Function<? super A, ? extends B> function,
+                                        Predicate<? super B> predicate) {
+        int cnt = 0;
+        B result = null;
         for (int i = 0; i < count; i++) {
-            output = execute();
-            if (predicate.test(output)) return output;
+            cnt++;
+            if (predicate.test(result = execute(input, function))) break;
         }
-        return output;
+        return new PollResult<>(cnt, result);
     }
 
-    public CountBasedPoller<A, B> count(int count) {
+    public CountBasedPoller count(int count) {
         this.count = count;
         return this;
     }

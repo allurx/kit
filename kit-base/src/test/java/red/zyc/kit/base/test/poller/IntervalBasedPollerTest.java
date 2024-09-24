@@ -29,16 +29,17 @@ public class IntervalBasedPollerTest {
 
     @Test
     void test() {
-        var num = new IntervalBasedPoller<AtomicInteger, Integer>()
+        var num = new IntervalBasedPoller()
                 .timing(Duration.ofSeconds(10), Duration.ofMillis(500))
                 .onTimeout(() -> {
                     throw new RuntimeException("timeout");
                 })
-                .apply(new AtomicInteger(1), i -> {
-                    System.out.println(i);
-                    return i.incrementAndGet();
-                })
-                .until(o -> o == 12)
+                .poll(new AtomicInteger(1),
+                        i -> {
+                            System.out.println(i);
+                            return i.incrementAndGet();
+                        },
+                        o -> o == 12)
                 .get();
 
         Assertions.assertEquals(12, num);

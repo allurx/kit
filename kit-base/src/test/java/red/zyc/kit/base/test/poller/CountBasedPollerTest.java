@@ -28,10 +28,11 @@ public class CountBasedPollerTest {
 
     @Test
     void test() {
-        var num = new CountBasedPoller<AtomicInteger, Integer>()
+        var num = new CountBasedPoller()
                 .count(10)
-                .apply(new AtomicInteger(1), AtomicInteger::incrementAndGet)
-                .until(o -> o == 6)
+                .poll(new AtomicInteger(1),
+                        AtomicInteger::incrementAndGet,
+                        o -> o == 6)
                 .get();
         Assertions.assertEquals(6, num);
     }

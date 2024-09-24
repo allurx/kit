@@ -17,6 +17,7 @@
 package red.zyc.kit.base;
 
 import red.zyc.kit.base.function.MultiOutputSupplier;
+import red.zyc.kit.base.reflection.TypeConverter;
 
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
@@ -198,9 +199,8 @@ public final class ConditionalFlow<T> {
          *
          * @return the current instance
          */
-        @SuppressWarnings("unchecked")
         private B self() {
-            return (B) this;
+            return TypeConverter.uncheckedCast(this);
         }
     }
 

@@ -21,61 +21,53 @@ import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
+import static red.zyc.kit.base.reflection.TypeConverter.uncheckedCast;
+
 /**
  * @author allurx
  */
-public abstract class AbstractPoller<A, B, S extends AbstractPoller<A, B, S>> implements Poller<A, B> {
+public abstract class AbstractPoller<S extends AbstractPoller<S>> implements Poller {
 
-    A input;
-    B output;
-    @SuppressWarnings("unchecked")
-    final S self = (S) this;
-    protected Function<? super A, ? extends B> function;
-    protected Predicate<? super B> predicate;
     protected List<Class<? extends Throwable>> ignoredExceptions = new ArrayList<>();
-    protected final System.Logger LOGGER = System.getLogger(getClass().getName());
+    protected System.Logger logger = System.getLogger(getClass().getName());
 
     @Override
-    public B get() {
-        Objects.requireNonNull(function, "The Function cannot be null");
-        Objects.requireNonNull(predicate, "The predicate used to test the output of the Function cannot be null");
-        return polling();
-    }
-
-    @Override
-    public Poller<A, B> apply(A input, Function<? super A, ? extends B> function) {
-        this.input = input;
-        this.function = function;
-        return this;
-    }
-
-    @Override
-    public Poller<A, B> until(Predicate<? super B> predicate) {
-        this.predicate = predicate;
-        return this;
+    public <A, B> PollResult<B> poll(A input,
+                                     Function<? super A, ? extends B> function,
+                                     Predicate<? super B> predicate) {
+        return polling(input,
+                Objects.requireNonNull(function, "The Function cannot be null"),
+                Objects.requireNonNull(predicate, "The Predicate used to test the output of the Function cannot be null"));
     }
 
     public S ignoreExceptions(Class<? extends Throwable> ignoredException) {
         this.ignoredExceptions.add(ignoredException);
-        return self;
+        return uncheckedCast(this);
     }
 
     public S ignoreExceptions(List<Class<? extends Throwable>> ignoredExceptions) {
-        this.ignoredExceptions = ignoredExceptions;
-        return self;
+        this.ignoredExceptions = Objects.requireNonNull(ignoredExceptions, "The List of Ignore Exceptions cannot be null");
+        return uncheckedCast(this);
     }
 
-    abstract B polling();
+    public S logger(System.Logger logger) {
+        this.logger = Objects.requireNonNull(logger, "The Logger cannot be null");
+        return uncheckedCast(this);
+    }
+
+    abstract <A, B> PollResult<B> polling(A input,
+                                          Function<? super A, ? extends B> function,
+                                          Predicate<? super B> predicate);
 
     /**
      * 执行函数
      */
-    protected B execute() {
+    protected <A, B> B execute(A input, Function<? super A, ? extends B> function) {
         try {
             return function.apply(input);
         } catch (Throwable t) {
             if (ignoredExceptions.stream().noneMatch(ignoredException -> ignoredException.isInstance(t))) throw t;
-            LOGGER.log(System.Logger.Level.WARNING, "Poller is ignoring the exception: {0}", t.getClass().getName());
+            logger.log(System.Logger.Level.WARNING, "Poller is ignoring the exception: {0}", t.getClass().getName());
             return null;
         }
     }

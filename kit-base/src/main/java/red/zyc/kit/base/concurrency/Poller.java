@@ -23,10 +23,23 @@ import java.util.function.Predicate;
 /**
  * @author allurx
  */
-public interface Poller<A, B> extends MultiOutputSupplier<B> {
+public interface Poller {
 
-    Poller<A, B> apply(A input, Function<? super A, ? extends B> function);
+    <A, B> PollResult<B> poll(A input,
+                              Function<? super A, ? extends B> function,
+                              Predicate<? super B> predicate);
 
-    Poller<A, B> until(Predicate<? super B> predicate);
+    /**
+     * @param count  轮询次数
+     * @param result 轮询结果
+     * @param <T>    轮询结果类型
+     */
+    record PollResult<T>(int count, T result) implements MultiOutputSupplier<T> {
+
+        @Override
+        public T get() {
+            return result;
+        }
+    }
 
 }
