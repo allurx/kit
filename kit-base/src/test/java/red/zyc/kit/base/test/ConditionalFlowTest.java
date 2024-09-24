@@ -69,9 +69,9 @@ public class ConditionalFlowTest {
                 .elseIf(() -> false).run(() -> System.out.println("else if"))
                 .elseIf(() -> false).throwIt(RuntimeException::new)
                 .elseIf(() -> true).supply(() -> 1)
-                .elseIf(() -> false).supply(() -> 2)
+                .elseIf(() -> false).supply(() -> "2")
                 .elseIf(() -> true).supply(() -> 3)
-                .elseIf(() -> false).supply(() -> 4)
+                .elseIf(() -> false).supply(() -> "4")
                 .orElse().supply(() -> 5)
                 .get();
         Assertions.assertEquals(1, i);
