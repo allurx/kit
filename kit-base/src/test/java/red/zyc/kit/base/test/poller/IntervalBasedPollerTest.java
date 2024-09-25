@@ -30,11 +30,11 @@ import java.util.concurrent.locks.LockSupport;
  */
 public class IntervalBasedPollerTest {
 
-    IntervalBasedPoller poller = new IntervalBasedPoller()
+    IntervalBasedPoller poller = IntervalBasedPoller.builder()
             .timing(Duration.ofSeconds(3), Duration.ofMillis(300))
-            .onTimeout(() -> {
+            .timeoutAction(() -> {
                 throw new RuntimeException("timeout");
-            });
+            }).build();
 
     @Test
     void apply() {

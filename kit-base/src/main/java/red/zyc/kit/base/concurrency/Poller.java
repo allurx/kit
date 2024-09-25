@@ -32,8 +32,8 @@ public interface Poller {
                               Predicate<? super B> predicate);
 
     default <T> void poll(T input,
-                             Consumer<? super T> consumer,
-                             BooleanSupplier booleanSupplier) {
+                          Consumer<? super T> consumer,
+                          BooleanSupplier booleanSupplier) {
         poll(() -> consumer.accept(input), booleanSupplier);
     }
 

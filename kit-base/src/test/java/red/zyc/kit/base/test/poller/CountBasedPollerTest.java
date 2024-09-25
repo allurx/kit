@@ -26,7 +26,9 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class CountBasedPollerTest {
 
-    CountBasedPoller poller = new CountBasedPoller().count(100);
+    CountBasedPoller poller = CountBasedPoller.builder()
+            .count(20)
+            .build();
 
     @Test
     void apply() {

@@ -27,18 +27,28 @@ import java.util.function.Predicate;
 /**
  * @author allurx
  */
-public class IntervalBasedPoller extends AbstractPoller<IntervalBasedPoller> {
+public class IntervalBasedPoller extends BasePoller {
 
-    protected Clock clock = Clock.systemDefaultZone();
-    protected Duration duration = Duration.ZERO;
-    protected Duration interval = Duration.ZERO;
-    protected Sleeper sleeper = Sleeper.DEFAULT;
-    protected Runnable timeoutAction = FunctionConstants.EMPTY_RUNNABLE;
+    private final Clock clock;
+    private final Duration duration;
+    private final Duration interval;
+    private final Sleeper sleeper;
+    private final Runnable timeoutAction;
+
+    private IntervalBasedPoller(IntervalBasedPollerBuilder builder) {
+        super(builder.ignoredExceptions, builder.logger);
+        this.clock = builder.clock;
+        this.duration = builder.duration;
+        this.interval = builder.interval;
+        this.sleeper = builder.sleeper;
+        this.timeoutAction = builder.timeoutAction;
+    }
 
     @Override
     public <A, B> PollResult<B> poll(A input,
                                      Function<? super A, ? extends B> function,
                                      Predicate<? super B> predicate) {
+        check(function, predicate);
         int cnt = 0;
         B result;
         Instant endInstant = clock.instant().plus(duration);
@@ -62,25 +72,42 @@ public class IntervalBasedPoller extends AbstractPoller<IntervalBasedPoller> {
         return new PollResult<>(cnt, result);
     }
 
-    public IntervalBasedPoller timing(Duration duration, Duration interval) {
-        return timing(Clock.systemDefaultZone(), duration, interval);
+    public static IntervalBasedPollerBuilder builder() {
+        return new IntervalBasedPollerBuilder();
     }
 
-    public IntervalBasedPoller timing(Clock clock, Duration duration, Duration interval) {
-        this.clock = Objects.requireNonNull(clock, "the clock must not be null");
-        this.duration = Objects.requireNonNull(duration, "the duration must not be null");
-        this.interval = Objects.requireNonNull(interval, "the interval must not be null");
-        return this;
-    }
+    public static class IntervalBasedPollerBuilder extends BasePollerBuilder<IntervalBasedPollerBuilder> {
 
-    public IntervalBasedPoller sleeper(Sleeper sleeper) {
-        this.sleeper = Objects.requireNonNull(sleeper, "the sleeper must not be null");
-        return this;
-    }
+        private Clock clock = Clock.systemDefaultZone();
+        private Duration duration = Duration.ZERO;
+        private Duration interval = Duration.ZERO;
+        private Sleeper sleeper = Sleeper.DEFAULT;
+        private Runnable timeoutAction = FunctionConstants.EMPTY_RUNNABLE;
 
-    public IntervalBasedPoller onTimeout(Runnable timeoutAction) {
-        this.timeoutAction = Objects.requireNonNull(timeoutAction, "the timeoutAction must not be null");
-        return this;
+        public IntervalBasedPollerBuilder timing(Duration duration, Duration interval) {
+            return timing(Clock.systemDefaultZone(), duration, interval);
+        }
+
+        public IntervalBasedPollerBuilder timing(Clock clock, Duration duration, Duration interval) {
+            this.clock = Objects.requireNonNull(clock, "The clock must not be null");
+            this.duration = Objects.requireNonNull(duration, "The duration must not be null");
+            this.interval = Objects.requireNonNull(interval, "The interval must not be null");
+            return this;
+        }
+
+        public IntervalBasedPollerBuilder sleeper(Sleeper sleeper) {
+            this.sleeper = Objects.requireNonNull(sleeper, "The sleeper must not be null");
+            return this;
+        }
+
+        public IntervalBasedPollerBuilder timeoutAction(Runnable timeoutAction) {
+            this.timeoutAction = Objects.requireNonNull(timeoutAction, "The timeoutAction must not be null");
+            return this;
+        }
+
+        public IntervalBasedPoller build() {
+            return new IntervalBasedPoller(this);
+        }
     }
 
 }
