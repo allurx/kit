@@ -94,7 +94,20 @@ public abstract class BasePoller implements Poller {
      */
     public static class BasePollerBuilder<B extends BasePollerBuilder<B>> {
 
+        /**
+         * Default constructor
+         */
+        public BasePollerBuilder() {
+        }
+
+        /**
+         * {@link BasePoller#logger}
+         */
         protected System.Logger logger;
+
+        /**
+         * {@link BasePoller#ignoredExceptions}
+         */
         protected List<Class<? extends Throwable>> ignoredExceptions = new ArrayList<>();
 
         /**

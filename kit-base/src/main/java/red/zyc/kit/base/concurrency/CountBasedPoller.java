@@ -90,6 +90,12 @@ public class CountBasedPoller extends BasePoller {
      */
     public static class CountBasedPollerBuilder extends BasePollerBuilder<CountBasedPollerBuilder> {
 
+        /**
+         * Default constructor
+         */
+        public CountBasedPollerBuilder() {
+        }
+
         private int count;
 
         /**

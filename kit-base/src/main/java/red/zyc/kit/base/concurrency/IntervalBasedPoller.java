@@ -131,6 +131,12 @@ public class IntervalBasedPoller extends BasePoller {
      */
     public static class IntervalBasedPollerBuilder extends BasePollerBuilder<IntervalBasedPollerBuilder> {
 
+        /**
+         * Default constructor
+         */
+        public IntervalBasedPollerBuilder() {
+        }
+
         private Clock clock = Clock.systemDefaultZone();
         private Duration duration = Duration.ZERO;
         private Duration interval = Duration.ZERO;

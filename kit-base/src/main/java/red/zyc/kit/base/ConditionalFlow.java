@@ -72,7 +72,7 @@ public final class ConditionalFlow<T> {
      *
      * @param condition the initial condition
      * @param <T>       the type of result expected
-     * @return an {@link IfBranch} to continue the flow
+     * @return an {@link ConditionalFlow.IfBranch} to continue the flow
      */
     public static <T> ConditionalFlow<T>.IfBranch when(boolean condition) {
         return new ConditionalFlow<T>().new IfBranch(condition);
@@ -83,7 +83,7 @@ public final class ConditionalFlow<T> {
      *
      * @param booleanSupplier the supplier providing the condition
      * @param <T>             the type of result expected
-     * @return an {@link IfBranch} to proceed with the flow
+     * @return an {@link ConditionalFlow.IfBranch} to proceed with the flow
      */
     public static <T> ConditionalFlow<T>.IfBranch when(BooleanSupplier booleanSupplier) {
         return when(booleanSupplier.getAsBoolean());
