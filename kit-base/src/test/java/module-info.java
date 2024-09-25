@@ -25,6 +25,8 @@ module red.zyc.kit.base.test {
     requires java.net.http;
     exports red.zyc.kit.base.test;
     exports red.zyc.kit.base.jmh;
+    exports red.zyc.kit.base.test.poller;
     opens red.zyc.kit.base.jmh;
     opens red.zyc.kit.base.test;
+    opens red.zyc.kit.base.test.poller;
 }

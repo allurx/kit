@@ -15,334 +15,62 @@
  */
 package red.zyc.kit.base.concurrency;
 
-import red.zyc.kit.base.function.ThrowableSupplier;
+import red.zyc.kit.base.function.MultiOutputSupplier;
 
-import java.time.Clock;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.function.BooleanSupplier;
+import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 /**
- * Executes the {@link #function} at a fixed {@link #interval} within the {@link Clock#instant()}+{@link #duration} period until any of the following conditions is met:
- * <ul>
- *     <li>{@link #predicate} returns true for the output of {@link #function}</li>
- *     <li>The timeout occurs (the polling duration exceeds {@link Clock#instant()}+{@link #duration})</li>
- * </ul>
- * <p>Here are two common examples of usage:</p>
- * <p style="color: #4682B4;font-weight: bold;">
- * Print the current date and time every 500 milliseconds for up to 10 seconds. When the timeout expires, a {@link RuntimeException} will be thrown.
- * </p>
- * <pre>
- * {@code
- *     Poller.<Void, Void>builder()
- *              .timing(Duration.ofSeconds(10), Duration.ofMillis(500))
- *              .<RunnableFunction<Void>>execute(null, o -> System.out.println(LocalDateTime.now()))
- *              .predicate(o -> false)
- *              .onTimeout(throwingRunnable(() -> new RuntimeException("Timeout")))
- *              .build()
- *              .poll();
- * }
- * </pre>
- * <p style="color: #4682B4;font-weight: bold;">
- * Print `num++` every 500 milliseconds for up to 10 seconds until `num` equals 12, then exit the polling.
- * </p>
- * <pre>
- * {@code
- *         AtomicInteger num = new AtomicInteger(1);
- *         Poller.<AtomicInteger, Integer>builder()
- *                 .timing(Duration.ofSeconds(10), Duration.ofMillis(500))
- *                 .<CallableFunction<AtomicInteger, Integer>>execute(num, i -> {
- *                     System.out.println(num.get());
- *                     return num.getAndIncrement();
- *                 })
- *                 .predicate(o -> o == 12)
- *                 .onTimeout(throwingRunnable(() -> new RuntimeException("Timeout")))
- *                 .build()
- *                 .poll();
- * }
- * </pre>
+ * The Poller interface defines a polling mechanism that allows repeated execution
+ * based on a given input, processing function, and termination condition.
  *
- * @param <A> the input type of the polling function
- * @param <B> the output type of the polling function
  * @author allurx
  */
-public class Poller<A, B> {
-
-    private static final System.Logger LOGGER = System.getLogger(Poller.class.getName());
-
-    private Poller() {
-    }
+public interface Poller {
 
     /**
-     * The {@link Clock} used for timing
-     */
-    private Clock clock;
-
-    /**
-     * The total duration for polling
-     */
-    private Duration duration;
-
-    /**
-     * The interval between each poll
-     */
-    private Duration interval;
-
-    /**
-     * The function to be executed during polling
-     */
-    private PollerFunction<A, B> function;
-
-    /**
-     * The input for {@link #function}
-     */
-    private A input;
-
-    /**
-     * A predicate to determine if polling should stop based on the {@link #function}'s output
-     */
-    private Predicate<B> predicate;
-
-    /**
-     * The {@link Sleeper} used for pausing between polls
-     */
-    private Sleeper sleeper;
-
-    /**
-     * The action to be performed when a timeout occurs
-     */
-    private Runnable timeoutAction;
-
-    /**
-     * The list of exceptions to ignore during {@link #function} execution
-     */
-    private final List<Class<? extends Throwable>> ignoredExceptions = new ArrayList<>();
-
-    /**
-     * Starts the polling process and returns the result.
+     * Executes a polling operation with customizable input, function, and termination condition.
      *
-     * @return an {@link Optional} containing the output of {@link #function}, or empty if polling did not succeed
+     * @param <A>           the input type
+     * @param <B>           the result type
+     * @param inputProvider the supplier that provides the input for each iteration
+     * @param function      the function applied to each input to generate a result
+     * @param predicate     the condition that, when true, will terminate the polling
+     * @return a {@link PollResult} containing the count of iterations and the final result
      */
-    public Optional<B> poll() {
-        return polling();
-    }
+    <A, B> PollResult<B> poll(Supplier<A> inputProvider,
+                              Function<? super A, ? extends B> function,
+                              Predicate<? super B> predicate);
 
     /**
-     * Encapsulates the result of a polling attempt.
-     */
-    private class PollResult {
-
-        /**
-         * The number of polling attempts
-         */
-        private int num = 0;
-
-        /**
-         * The output of the function
-         */
-        private B output = null;
-
-        /**
-         * Indicates if polling has timed out
-         */
-        private boolean timeout = false;
-
-        /**
-         * Indicates if the function execution was successful
-         */
-        private boolean success = false;
-    }
-
-    /**
-     * Performs the polling process
-     */
-    private Optional<B> polling() {
-        PollResult result = new PollResult();
-        Instant endInstant = clock.instant().plus(duration);
-        for (; ; ) {
-
-            // Execute the function
-            execute(result);
-
-            // Exit polling if the function execution was successful
-            if (result.success) break;
-
-            // Check if polling needs to stop based on the remaining time
-            result.timeout = clock.instant().plus(interval).isAfter(endInstant);
-            if (result.timeout) {
-                timeoutAction.run();
-                break;
-            }
-
-            // Pause before the next polling attempt
-            sleeper.sleep(interval);
-        }
-        return Optional.ofNullable(result.output);
-    }
-
-    /**
-     * Executes the {@link #function} and handles exceptions.
-     * If an exception occurs that is not in {@link #ignoredExceptions}, it is thrown.
+     * Polls the specified {@link Runnable} until the {@link BooleanSupplier} returns {@code true}.
      *
-     * @param result The {@link PollResult} to update with the execution result
+     * @param runnable        the operation to execute during each polling iteration
+     * @param booleanSupplier the condition used to terminate the polling; polling stops when {@code true} is returned
      */
-    private void execute(PollResult result) {
-        try {
-            result.num++;
-            result.output = function.execute(input);
-            result.success = predicate.test(result.output);
-        } catch (Throwable t) {
-            if (ignoredExceptions.stream().noneMatch(ignoredException -> ignoredException.isInstance(t))) throw t;
-            LOGGER.log(System.Logger.Level.WARNING, "Poller is ignoring the exception: {0}", t.getClass().getName());
-        }
+    default void poll(Runnable runnable, BooleanSupplier booleanSupplier) {
+        poll(() -> null, unused -> {
+            runnable.run();
+            return null;
+        }, unused -> booleanSupplier.getAsBoolean());
     }
 
     /**
-     * Creates a {@link Runnable} that throws a {@link RuntimeException} provided by the given {@link ThrowableSupplier}.
+     * PollResult holds the result of a polling operation, including the number of polling attempts
+     * and the final outcome.
      *
-     * @param throwableSupplier a {@link ThrowableSupplier} that provides the {@link RuntimeException} to be thrown
-     * @return a {@link Runnable} that throws the exception when executed
+     * @param count  the number of polling attempts
+     * @param result the final result of the polling
+     * @param <T>    the type of the polling result
      */
-    public static Runnable throwingRunnable(ThrowableSupplier<? extends RuntimeException> throwableSupplier) {
-        return () -> {
-            throw throwableSupplier.get();
-        };
+    record PollResult<T>(int count, T result) implements MultiOutputSupplier<T> {
+
+        @Override
+        public T get() {
+            return result;
+        }
     }
 
-    // Builder methods
-
-    /**
-     * Creates a new {@link Builder} instance for constructing a {@link Poller}.
-     *
-     * @param <A> the input type of the {@link #function}
-     * @param <B> the output type of the {@link #function}
-     * @return a new {@link Builder} instance for constructing a {@link Poller}
-     */
-    public static <A, B> Builder<A, B> builder() {
-        return new Builder<>(new Poller<>());
-    }
-
-    /**
-     * Builder for creating a {@link Poller} instance.
-     *
-     * @param <A> the input type of the {@link #function}
-     * @param <B> the output type of the {@link #function}
-     */
-    public static class Builder<A, B> {
-
-        private final Poller<A, B> poller;
-
-        /**
-         * Constructs a {@link Builder} with the specified {@link Poller}.
-         *
-         * @param poller the {@link Poller} instance to be used by the builder
-         */
-        public Builder(Poller<A, B> poller) {
-            this.poller = poller;
-        }
-
-        /**
-         * Configures the timing parameters for the {@link Poller} using the default system clock.
-         *
-         * @param duration {@link Poller#duration}
-         * @param interval {@link Poller#interval}
-         * @return the {@link Builder} instance for method chaining
-         */
-        public Builder<A, B> timing(Duration duration, Duration interval) {
-            return timing(Clock.systemDefaultZone(), duration, interval);
-        }
-
-        /**
-         * Configures the timing parameters for the {@link Poller} using the specified {@link Clock}.
-         *
-         * @param clock    {@link Poller#clock}
-         * @param duration {@link Poller#duration}
-         * @param interval {@link Poller#interval}
-         * @return the {@link Builder} instance for method chaining
-         */
-        public Builder<A, B> timing(Clock clock, Duration duration, Duration interval) {
-            poller.clock = clock;
-            poller.duration = duration;
-            poller.interval = interval;
-            return this;
-        }
-
-        /**
-         * Sets the input and function to be used by the {@link Poller}.
-         *
-         * @param <F>      the type of {@link PollerFunction}
-         * @param input    {@link Poller#input}
-         * @param function {@link Poller#function}
-         * @return the {@link Builder} instance for method chaining
-         */
-        public <F extends PollerFunction<A, B>> Builder<A, B> execute(A input, F function) {
-            poller.input = input;
-            poller.function = function;
-            return this;
-        }
-
-        /**
-         * Sets the predicate to determine if polling should stop.
-         *
-         * @param predicate {@link Poller#predicate}
-         * @return the {@link Builder} instance for method chaining
-         */
-        public Builder<A, B> predicate(Predicate<B> predicate) {
-            poller.predicate = predicate;
-            return this;
-        }
-
-        /**
-         * Sets the {@link Sleeper} to use for pausing between polls.
-         *
-         * @param sleeper {@link Poller#sleeper}
-         * @return the {@link Builder} instance for method chaining
-         */
-        public Builder<A, B> sleeper(Sleeper sleeper) {
-            poller.sleeper = sleeper;
-            return this;
-        }
-
-        /**
-         * Sets the action to be performed when polling times out.
-         *
-         * @param timeoutAction {@link Poller#timeoutAction}
-         * @return the {@link Builder} instance for method chaining
-         */
-        public Builder<A, B> onTimeout(Runnable timeoutAction) {
-            poller.timeoutAction = timeoutAction;
-            return this;
-        }
-
-        /**
-         * Adds an exception to be ignored during polling.
-         *
-         * @param ignoredException the class of the exception to be ignored
-         * @return the {@link Builder} instance for method chaining
-         */
-        public Builder<A, B> ignoreExceptions(Class<? extends Throwable> ignoredException) {
-            poller.ignoredExceptions.add(ignoredException);
-            return this;
-        }
-
-        /**
-         * Builds and returns a {@link Poller} instance with the configured settings.
-         *
-         * @return a new {@link Poller} instance
-         */
-        public Poller<A, B> build() {
-            if (poller.clock == null) poller.clock = Clock.systemDefaultZone();
-            if (poller.duration == null) poller.duration = Duration.ZERO;
-            if (poller.interval == null) poller.interval = Duration.ZERO;
-            if (poller.function == null) poller.function = (CallableFunction<A, B>) o -> null;
-            if (poller.predicate == null) poller.predicate = b -> true;
-            if (poller.sleeper == null) poller.sleeper = Sleeper.DEFAULT;
-            if (poller.timeoutAction == null) poller.timeoutAction = () -> {
-            };
-            return poller;
-        }
-    }
 }

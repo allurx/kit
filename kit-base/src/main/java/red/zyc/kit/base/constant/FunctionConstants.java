@@ -15,11 +15,13 @@
  */
 package red.zyc.kit.base.constant;
 
+import java.util.function.BooleanSupplier;
 import java.util.function.Predicate;
+
+import static red.zyc.kit.base.reflection.TypeConverter.uncheckedCast;
 
 /**
  * A collection of commonly used function constants.
- * <p>This class provides static constants for commonly used functional interfaces, such as {@link Runnable} and {@link Predicate}, to avoid creating new instances repeatedly.</p>
  *
  * @author allurx
  */
@@ -30,21 +32,48 @@ public final class FunctionConstants {
 
     /**
      * A {@link Runnable} that performs no action.
-     * <p>This constant is useful as a no-op placeholder in scenarios where a {@link Runnable} is required but no action is needed.</p>
      */
     public static final Runnable EMPTY_RUNNABLE = () -> {
     };
 
     /**
+     * A {@link BooleanSupplier} that always returns {@code true}.
+     */
+    public static final BooleanSupplier TRUE_SUPPLIER = () -> true;
+
+    /**
+     * A {@link BooleanSupplier} that always returns {@code false}.
+     */
+    public static final BooleanSupplier FALSE_SUPPLIER = () -> false;
+
+    /**
      * A {@link Predicate} that always returns {@code true}.
-     * <p>This constant can be used in contexts where a {@link Predicate} is needed that should always evaluate to {@code true}.</p>
      */
     public static final Predicate<?> TRUE_PREDICATE = x -> true;
 
     /**
      * A {@link Predicate} that always returns {@code false}.
-     * <p>This constant can be used in contexts where a {@link Predicate} is needed that should always evaluate to {@code false}.</p>
      */
     public static final Predicate<?> FALSE_PREDICATE = x -> false;
 
+    /**
+     * Returns a {@link Predicate} that always evaluates to true.
+     *
+     * @param <T> the type of the input to the predicate
+     * @return a predicate that always returns true
+     */
+    public static <T> Predicate<? super T> truePredicate() {
+        return uncheckedCast(TRUE_PREDICATE);
+    }
+
+    /**
+     * Returns a {@link Predicate} that always evaluates to false.
+     *
+     * @param <T> the type of the input to the predicate
+     * @return a predicate that always returns false
+     */
+    public static <T> Predicate<? super T> falsePredicate() {
+        return uncheckedCast(FALSE_PREDICATE);
+    }
 }
+

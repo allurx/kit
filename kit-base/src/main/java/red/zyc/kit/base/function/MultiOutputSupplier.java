@@ -15,6 +15,8 @@
  */
 package red.zyc.kit.base.function;
 
+import red.zyc.kit.base.reflection.TypeConverter;
+
 import java.util.Optional;
 import java.util.function.Supplier;
 
@@ -44,8 +46,7 @@ public interface MultiOutputSupplier<T> extends Supplier<T> {
      * @return the result cast to the specified type
      * @throws ClassCastException if the result cannot be cast to the specified type
      */
-    @SuppressWarnings("unchecked")
     default <R> R getAsType() {
-        return (R) get();
+        return TypeConverter.uncheckedCast(get());
     }
 }

@@ -23,6 +23,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.stream.IntStream;
 
+import static red.zyc.kit.base.ConditionalFlow.when;
+
 /**
  * Unit tests for {@link ConditionalFlow}.
  * <p>
@@ -62,18 +64,17 @@ public class ConditionalFlowTest {
      * </p>
      */
     void conditionalFlow() {
-        var i = ConditionalFlow.<Integer>
-                        when(() -> false).run(() -> System.out.println("if"))
+        var i
+                = when(() -> false).run(() -> System.out.println("if"))
                 .elseIf(() -> false).run(() -> System.out.println("else if"))
-                .elseIf(() -> false).throwException(RuntimeException::new)
-                .elseIf(() -> true).yield(() -> 1)
-                .elseIf(() -> false).yield(() -> 2)
-                .elseIf(() -> true).yield(() -> 3)
-                .elseIf(() -> false).yield(() -> 4)
-                .orElse().yield(() -> 5)
+                .elseIf(() -> false).throwIt(RuntimeException::new)
+                .elseIf(() -> true).supply(() -> 1)
+                .elseIf(() -> false).supply(() -> "2")
+                .elseIf(() -> true).supply(() -> 3)
+                .elseIf(() -> false).supply(() -> "4")
+                .orElse().supply(() -> 5)
                 .get();
         Assertions.assertEquals(1, i);
     }
-
 
 }

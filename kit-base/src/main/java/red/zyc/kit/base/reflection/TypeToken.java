@@ -121,9 +121,7 @@ public abstract class TypeToken<T> {
             case WildcardType wildcardType -> throw new IllegalStateException("Unexpected value: " + wildcardType);
             default -> throw new IllegalStateException("Unexpected value: " + capturedType);
         };
-        @SuppressWarnings("unchecked")
-        var rawType = (Class<T>) clazz;
-        return rawType;
+        return TypeConverter.uncheckedCast(clazz);
     }
 
     @Override

@@ -97,8 +97,11 @@ public final class Chrome implements AutoCloseable {
      */
     @Override
     public void close() {
-        Optional.ofNullable(webDriver).ifPresent(wd -> Thread.ofVirtual().start(wd::quit));
-        Optional.ofNullable(process).ifPresent(p -> Thread.ofVirtual().start(p::destroy));
+        try {
+            Optional.ofNullable(webDriver).ifPresent(WebDriver::quit);
+        } finally {
+            Optional.ofNullable(process).ifPresent(Process::destroy);
+        }
     }
 
     /**
@@ -219,7 +222,7 @@ public final class Chrome implements AutoCloseable {
          */
         public Chrome build() {
             try {
-                when(chrome.mode == null).throwException(() -> new IllegalStateException("Chrome mode not set"));
+                when(chrome.mode == null).throwIt(() -> new IllegalStateException("Chrome mode not set"));
                 switch (chrome.mode) {
                     case ATTACH -> {
 
@@ -263,16 +266,12 @@ public final class Chrome implements AutoCloseable {
                         }
                     }
                     case HOSTED -> {
-                        var options = new ChromeOptions();
-                        options.addArguments(chrome.defaultArgs);
+                        var options = new ChromeOptions().addArguments(chrome.defaultArgs);
                         chrome.webDriver = new ChromeDriver(options);
                     }
                 }
             } catch (Throwable t) {
                 throw new BrowserException("Chrome construction failed", t);
-            } finally {
-                // Ensure Chrome and WebDriver are closed on JVM shutdown
-                Runtime.getRuntime().addShutdownHook(new Thread(chrome::close));
             }
             return chrome;
         }
