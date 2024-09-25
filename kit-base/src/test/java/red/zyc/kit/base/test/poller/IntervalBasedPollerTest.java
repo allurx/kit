@@ -30,38 +30,51 @@ import java.util.concurrent.locks.LockSupport;
  */
 public class IntervalBasedPollerTest {
 
+    // Create an IntervalBasedPoller with a timing interval of 3 seconds and a polling interval of 300 milliseconds
     IntervalBasedPoller poller = IntervalBasedPoller.builder()
             .timing(Duration.ofSeconds(3), Duration.ofMillis(300))
             .timeoutAction(() -> {
                 throw new RuntimeException("timeout");
             }).build();
 
+    /**
+     * Test the polling functionality to reach a specific value.
+     */
     @Test
     void apply() {
-        var num = poller.poll(new AtomicInteger(0),
+        var ai = new AtomicInteger(0);
+
+        // Poll until the AtomicInteger reaches 6
+        var num = poller.poll(() -> ai,
                 AtomicInteger::incrementAndGet,
                 i -> i == 6).get();
+
+        // Assert that the result is 6
         Assertions.assertEquals(6, num);
     }
 
-    @Test
-    void consume() {
-        var ai = new AtomicInteger(0);
-        poller.poll(ai, i -> System.out.println(i.getAndIncrement()), () -> ai.get() == 6);
-        Assertions.assertEquals(6, ai.get());
-    }
-
+    /**
+     * Test the polling functionality with a side effect of printing the value.
+     */
     @Test
     void run() {
         var ai = new AtomicInteger(0);
+
+        // Poll and print the incremented value until it equals 6
         poller.poll(() -> System.out.println(ai.getAndIncrement()), () -> ai.get() == 6);
+
+        // Assert that the final value is 6
         Assertions.assertEquals(6, ai.get());
     }
 
+    /**
+     * Test the timeout functionality of the poller.
+     */
     @Test
     void timeout() {
+        // Assert that a RuntimeException is thrown when polling for too long
         Assertions.assertThrowsExactly(RuntimeException.class,
                 () -> poller.poll(() -> LockSupport.parkNanos(TimeUnit.SECONDS.toNanos(4)), FunctionConstants.FALSE_SUPPLIER));
     }
-
 }
+

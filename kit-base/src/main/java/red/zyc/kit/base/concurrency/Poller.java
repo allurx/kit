@@ -18,36 +18,52 @@ package red.zyc.kit.base.concurrency;
 import red.zyc.kit.base.function.MultiOutputSupplier;
 
 import java.util.function.BooleanSupplier;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 /**
+ * The Poller interface defines a polling mechanism that allows repeated execution
+ * based on a given input, processing function, and termination condition.
+ *
  * @author allurx
  */
 public interface Poller {
 
-    <A, B> PollResult<B> poll(A input,
+    /**
+     * Executes a polling operation with customizable input, function, and termination condition.
+     *
+     * @param <A>           the input type
+     * @param <B>           the result type
+     * @param inputProvider the supplier that provides the input for each iteration
+     * @param function      the function applied to each input to generate a result
+     * @param predicate     the condition that, when true, will terminate the polling
+     * @return a {@link PollResult} containing the count of iterations and the final result
+     */
+    <A, B> PollResult<B> poll(Supplier<A> inputProvider,
                               Function<? super A, ? extends B> function,
                               Predicate<? super B> predicate);
 
-    default <T> void poll(T input,
-                          Consumer<? super T> consumer,
-                          BooleanSupplier booleanSupplier) {
-        poll(() -> consumer.accept(input), booleanSupplier);
-    }
-
+    /**
+     * Polls the specified {@link Runnable} until the {@link BooleanSupplier} returns {@code true}.
+     *
+     * @param runnable        the operation to execute during each polling iteration
+     * @param booleanSupplier the condition used to terminate the polling; polling stops when {@code true} is returned
+     */
     default void poll(Runnable runnable, BooleanSupplier booleanSupplier) {
-        poll(null, unused -> {
+        poll(() -> null, unused -> {
             runnable.run();
             return null;
         }, unused -> booleanSupplier.getAsBoolean());
     }
 
     /**
-     * @param count  轮询次数
-     * @param result 轮询结果
-     * @param <T>    轮询结果类型
+     * PollResult holds the result of a polling operation, including the number of polling attempts
+     * and the final outcome.
+     *
+     * @param count  the number of polling attempts
+     * @param result the final result of the polling
+     * @param <T>    the type of the polling result
      */
     record PollResult<T>(int count, T result) implements MultiOutputSupplier<T> {
 

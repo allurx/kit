@@ -23,16 +23,58 @@ import java.time.Instant;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 /**
+ * A Poller implementation that limits polling attempts based on a specified time duration and interval.
+ * Polling stops either when the time duration expires or the termination condition is satisfied.
+ * Supports custom sleeping behavior between polling attempts and a timeout action when polling times out.
+ * <p>Example usage of IntervalBasedPoller.</p>
+ *
+ * <pre>
+ * {@code
+ * IntervalBasedPoller poller = IntervalBasedPoller.builder()
+ *         .timing(Duration.ofSeconds(3), Duration.ofMillis(300))
+ *         .timeoutAction(() -> {
+ *             throw new RuntimeException("timeout");
+ *         })
+ *         .build();
+ *
+ * var ai = new AtomicInteger(0);
+ * var num = poller.poll(() -> ai,AtomicInteger::incrementAndGet,i -> i == 6).get();
+ *
+ * // The final result should be 6 if the polling was successful.
+ * System.out.println("Final result: " + num);
+ * }
+ * </pre>
+ *
  * @author allurx
  */
 public class IntervalBasedPoller extends BasePoller {
 
+    /**
+     * The clock used to track the polling duration.
+     */
     private final Clock clock;
+
+    /**
+     * The total duration allowed for polling.
+     */
     private final Duration duration;
+
+    /**
+     * The interval between each polling attempt.
+     */
     private final Duration interval;
+
+    /**
+     * The sleeper used to pause between polling attempts.
+     */
     private final Sleeper sleeper;
+
+    /**
+     * The action to perform when the polling times out.
+     */
     private final Runnable timeoutAction;
 
     private IntervalBasedPoller(IntervalBasedPollerBuilder builder) {
@@ -44,38 +86,49 @@ public class IntervalBasedPoller extends BasePoller {
         this.timeoutAction = builder.timeoutAction;
     }
 
+    /**
+     * Polls the function using the provided input, until either the duration expires or the condition is met.
+     *
+     * @param <A>           the input type
+     * @param <B>           the result type
+     * @param inputProvider the supplier providing input for each polling iteration
+     * @param function      the function applied to each input
+     * @param predicate     the condition to check after each function execution to stop polling
+     * @return a {@link PollResult} with the final result and the number of attempts
+     */
     @Override
-    public <A, B> PollResult<B> poll(A input,
-                                     Function<? super A, ? extends B> function,
-                                     Predicate<? super B> predicate) {
+    public <A, B> PollResult<B> poll(Supplier<A> inputProvider, Function<? super A, ? extends B> function, Predicate<? super B> predicate) {
         check(function, predicate);
         int cnt = 0;
         B result;
         Instant endInstant = clock.instant().plus(duration);
         while (true) {
-
             cnt++;
+            if (predicate.test(result = execute(inputProvider.get(), function))) break;
 
-            // Exit polling if the function execution was successful
-            if (predicate.test(result = execute(input, function))) break;
-
-            // Check if polling needs to stop based on the remaining time
             boolean timeout = clock.instant().plus(interval).isAfter(endInstant);
             if (timeout) {
                 timeoutAction.run();
                 break;
             }
-
-            // Pause before the next polling attempt
             sleeper.sleep(interval);
         }
         return new PollResult<>(cnt, result);
     }
 
+    /**
+     * Creates a new builder instance for configuring and constructing a {@link IntervalBasedPoller}.
+     *
+     * @return a new {@link IntervalBasedPollerBuilder}
+     */
     public static IntervalBasedPollerBuilder builder() {
         return new IntervalBasedPollerBuilder();
     }
 
+    /**
+     * IntervalBasedPollerBuilder is used to build a {@link IntervalBasedPoller}, which polls
+     * at regular intervals for a specified duration.
+     */
     public static class IntervalBasedPollerBuilder extends BasePollerBuilder<IntervalBasedPollerBuilder> {
 
         private Clock clock = Clock.systemDefaultZone();
@@ -84,10 +137,25 @@ public class IntervalBasedPoller extends BasePoller {
         private Sleeper sleeper = Sleeper.DEFAULT;
         private Runnable timeoutAction = FunctionConstants.EMPTY_RUNNABLE;
 
+        /**
+         * Configures the polling to use the system clock, with the specified duration and interval.
+         *
+         * @param duration the total time to continue polling
+         * @param interval the time between polling attempts
+         * @return the builder instance for chaining
+         */
         public IntervalBasedPollerBuilder timing(Duration duration, Duration interval) {
             return timing(Clock.systemDefaultZone(), duration, interval);
         }
 
+        /**
+         * Configures the polling to use a custom clock, with the specified duration and interval.
+         *
+         * @param clock    the clock to use for timing
+         * @param duration the total time to continue polling
+         * @param interval the time between polling attempts
+         * @return the builder instance for chaining
+         */
         public IntervalBasedPollerBuilder timing(Clock clock, Duration duration, Duration interval) {
             this.clock = Objects.requireNonNull(clock, "The clock must not be null");
             this.duration = Objects.requireNonNull(duration, "The duration must not be null");
@@ -95,16 +163,33 @@ public class IntervalBasedPoller extends BasePoller {
             return this;
         }
 
+        /**
+         * Sets the sleeper that will pause between polling attempts.
+         *
+         * @param sleeper the custom sleeper to use
+         * @return the builder instance for chaining
+         */
         public IntervalBasedPollerBuilder sleeper(Sleeper sleeper) {
             this.sleeper = Objects.requireNonNull(sleeper, "The sleeper must not be null");
             return this;
         }
 
+        /**
+         * Sets the action to be executed when the polling times out.
+         *
+         * @param timeoutAction the action to execute when polling exceeds the time limit
+         * @return the builder instance for chaining
+         */
         public IntervalBasedPollerBuilder timeoutAction(Runnable timeoutAction) {
             this.timeoutAction = Objects.requireNonNull(timeoutAction, "The timeoutAction must not be null");
             return this;
         }
 
+        /**
+         * Builds and returns a new {@link IntervalBasedPoller} instance.
+         *
+         * @return a new IntervalBasedPoller instance
+         */
         public IntervalBasedPoller build() {
             return new IntervalBasedPoller(this);
         }
