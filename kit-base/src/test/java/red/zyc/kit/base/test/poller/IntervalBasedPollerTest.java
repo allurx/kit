@@ -18,12 +18,9 @@ package red.zyc.kit.base.test.poller;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import red.zyc.kit.base.concurrency.IntervalBasedPoller;
-import red.zyc.kit.base.constant.FunctionConstants;
 
 import java.time.Duration;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.LockSupport;
 
 /**
  * @author allurx
@@ -33,9 +30,7 @@ public class IntervalBasedPollerTest {
     // Create an IntervalBasedPoller with a timing interval of 3 seconds and a polling interval of 300 milliseconds
     IntervalBasedPoller poller = IntervalBasedPoller.builder()
             .timing(Duration.ofSeconds(3), Duration.ofMillis(300))
-            .timeoutAction(() -> {
-                throw new RuntimeException("timeout");
-            }).build();
+            .build();
 
     /**
      * Test the polling functionality to reach a specific value.
@@ -67,14 +62,5 @@ public class IntervalBasedPollerTest {
         Assertions.assertEquals(6, ai.get());
     }
 
-    /**
-     * Test the timeout functionality of the poller.
-     */
-    @Test
-    void timeout() {
-        // Assert that a RuntimeException is thrown when polling for too long
-        Assertions.assertThrowsExactly(RuntimeException.class,
-                () -> poller.poll(() -> LockSupport.parkNanos(TimeUnit.SECONDS.toNanos(4)), FunctionConstants.FALSE_SUPPLIER));
-    }
 }
 

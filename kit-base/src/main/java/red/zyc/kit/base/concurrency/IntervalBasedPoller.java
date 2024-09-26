@@ -15,8 +15,6 @@
  */
 package red.zyc.kit.base.concurrency;
 
-import red.zyc.kit.base.constant.FunctionConstants;
-
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -72,18 +70,12 @@ public class IntervalBasedPoller extends BasePoller {
      */
     private final Sleeper sleeper;
 
-    /**
-     * The action to perform when the polling times out.
-     */
-    private final Runnable timeoutAction;
-
     private IntervalBasedPoller(IntervalBasedPollerBuilder builder) {
         super(builder.ignoredExceptions, builder.logger);
         this.clock = builder.clock;
         this.duration = builder.duration;
         this.interval = builder.interval;
         this.sleeper = builder.sleeper;
-        this.timeoutAction = builder.timeoutAction;
     }
 
     @Override
@@ -95,14 +87,16 @@ public class IntervalBasedPoller extends BasePoller {
         B result;
         Instant endInstant = clock.instant().plus(duration);
         while (true) {
+
             cnt++;
+
+            // Break if predicate is satisfied after executing function
             if (predicate.test(result = execute(supplier.get(), function))) break;
 
-            boolean timeout = clock.instant().plus(interval).isAfter(endInstant);
-            if (timeout) {
-                timeoutAction.run();
-                break;
-            }
+            // Break if current time plus interval is after endInstant
+            if (clock.instant().plus(interval).isAfter(endInstant)) break;
+
+            // Sleep for the specified interval
             sleeper.sleep(interval);
         }
         return new PollResult<>(cnt, result);
@@ -133,7 +127,6 @@ public class IntervalBasedPoller extends BasePoller {
         private Duration duration = Duration.ZERO;
         private Duration interval = Duration.ZERO;
         private Sleeper sleeper = Sleeper.DEFAULT;
-        private Runnable timeoutAction = FunctionConstants.EMPTY_RUNNABLE;
 
         /**
          * Configures the polling to use the system clock, with the specified duration and interval.
@@ -169,17 +162,6 @@ public class IntervalBasedPoller extends BasePoller {
          */
         public IntervalBasedPollerBuilder sleeper(Sleeper sleeper) {
             this.sleeper = Objects.requireNonNull(sleeper, "The sleeper must not be null");
-            return this;
-        }
-
-        /**
-         * Sets the action to be executed when the polling times out.
-         *
-         * @param timeoutAction the action to execute when polling exceeds the time limit
-         * @return the builder instance for chaining
-         */
-        public IntervalBasedPollerBuilder timeoutAction(Runnable timeoutAction) {
-            this.timeoutAction = Objects.requireNonNull(timeoutAction, "The timeoutAction must not be null");
             return this;
         }
 

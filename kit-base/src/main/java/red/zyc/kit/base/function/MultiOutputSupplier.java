@@ -33,7 +33,7 @@ public interface MultiOutputSupplier<T> extends Supplier<T> {
      *
      * @return the result wrapped in an {@link Optional}.
      */
-    default Optional<T> getOptional() {
+    default Optional<T> getAsOptional() {
         return Optional.ofNullable(get());
     }
 
