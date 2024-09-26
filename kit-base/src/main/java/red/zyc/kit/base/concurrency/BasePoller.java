@@ -92,12 +92,12 @@ public abstract class BasePoller implements Poller {
      *
      * @param <B> the builder type, allowing method chaining in subclasses
      */
-    public static class BasePollerBuilder<B extends BasePollerBuilder<B>> {
+    public static abstract class BasePollerBuilder<B extends BasePollerBuilder<B>> {
 
         /**
          * Default constructor
          */
-        public BasePollerBuilder() {
+        protected BasePollerBuilder() {
         }
 
         /**
