@@ -62,7 +62,7 @@ public abstract class BasePoller implements Poller {
      * @param <A>       the input type of the function
      * @param <B>       the output type of the function
      */
-    public <A, B> void check(Function<? super A, ? extends B> function, Predicate<? super B> predicate) {
+    protected <A, B> void check(Function<? super A, ? extends B> function, Predicate<? super B> predicate) {
         Objects.requireNonNull(function, "The Function cannot be null");
         Objects.requireNonNull(predicate, "The Predicate used to test the output of the Function cannot be null");
     }
@@ -92,12 +92,12 @@ public abstract class BasePoller implements Poller {
      *
      * @param <B> the builder type, allowing method chaining in subclasses
      */
-    public static class BasePollerBuilder<B extends BasePollerBuilder<B>> {
+    public static abstract class BasePollerBuilder<B extends BasePollerBuilder<B>> {
 
         /**
          * Default constructor
          */
-        public BasePollerBuilder() {
+        protected BasePollerBuilder() {
         }
 
         /**

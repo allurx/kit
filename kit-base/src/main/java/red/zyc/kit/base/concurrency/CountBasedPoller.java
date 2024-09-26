@@ -53,24 +53,16 @@ public class CountBasedPoller extends BasePoller {
         this.count = builder.count;
     }
 
-    /**
-     * Polls the function using the provided input, until either the maximum number of attempts is reached or the condition is met.
-     *
-     * @param <A>           the input type
-     * @param <B>           the result type
-     * @param inputProvider the supplier providing input for each polling iteration
-     * @param function      the function applied to each input
-     * @param predicate     the condition to check after each function execution to stop polling
-     * @return a {@link PollResult} with the final result and the number of attempts
-     */
     @Override
-    public <A, B> PollResult<B> poll(Supplier<A> inputProvider, Function<? super A, ? extends B> function, Predicate<? super B> predicate) {
+    public <A, B> PollResult<B> poll(Supplier<? extends A> supplier,
+                                     Function<? super A, ? extends B> function,
+                                     Predicate<? super B> predicate) {
         check(function, predicate);
         int cnt = 0;
         B result = null;
         for (int i = 0; i < count; i++) {
             cnt++;
-            if (predicate.test(result = execute(inputProvider.get(), function))) break;
+            if (predicate.test(result = execute(supplier.get(), function))) break;
         }
         return new PollResult<>(cnt, result);
     }

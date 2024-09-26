@@ -33,14 +33,14 @@ public interface Poller {
     /**
      * Executes a polling operation with customizable input, function, and termination condition.
      *
-     * @param <A>           the input type
-     * @param <B>           the result type
-     * @param inputProvider the supplier that provides the input for each iteration
-     * @param function      the function applied to each input to generate a result
-     * @param predicate     the condition that, when true, will terminate the polling
+     * @param <A>       the input type
+     * @param <B>       the result type
+     * @param supplier  the supplier that provides the input for each iteration
+     * @param function  the function applied to each input to generate a result
+     * @param predicate the condition that, when true, will terminate the polling
      * @return a {@link PollResult} containing the count of iterations and the final result
      */
-    <A, B> PollResult<B> poll(Supplier<A> inputProvider,
+    <A, B> PollResult<B> poll(Supplier<? extends A> supplier,
                               Function<? super A, ? extends B> function,
                               Predicate<? super B> predicate);
 
