@@ -54,7 +54,9 @@ public class CountBasedPoller extends BasePoller {
     }
 
     @Override
-    public <A, B> PollResult<B> poll(Supplier<A> supplier, Function<? super A, ? extends B> function, Predicate<? super B> predicate) {
+    public <A, B> PollResult<B> poll(Supplier<? extends A> supplier,
+                                     Function<? super A, ? extends B> function,
+                                     Predicate<? super B> predicate) {
         check(function, predicate);
         int cnt = 0;
         B result = null;

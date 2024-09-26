@@ -40,7 +40,7 @@ public interface Poller {
      * @param predicate the condition that, when true, will terminate the polling
      * @return a {@link PollResult} containing the count of iterations and the final result
      */
-    <A, B> PollResult<B> poll(Supplier<A> supplier,
+    <A, B> PollResult<B> poll(Supplier<? extends A> supplier,
                               Function<? super A, ? extends B> function,
                               Predicate<? super B> predicate);
 
