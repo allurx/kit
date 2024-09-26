@@ -86,25 +86,15 @@ public class IntervalBasedPoller extends BasePoller {
         this.timeoutAction = builder.timeoutAction;
     }
 
-    /**
-     * Polls the function using the provided input, until either the duration expires or the condition is met.
-     *
-     * @param <A>           the input type
-     * @param <B>           the result type
-     * @param inputProvider the supplier providing input for each polling iteration
-     * @param function      the function applied to each input
-     * @param predicate     the condition to check after each function execution to stop polling
-     * @return a {@link PollResult} with the final result and the number of attempts
-     */
     @Override
-    public <A, B> PollResult<B> poll(Supplier<A> inputProvider, Function<? super A, ? extends B> function, Predicate<? super B> predicate) {
+    public <A, B> PollResult<B> poll(Supplier<A> supplier, Function<? super A, ? extends B> function, Predicate<? super B> predicate) {
         check(function, predicate);
         int cnt = 0;
         B result;
         Instant endInstant = clock.instant().plus(duration);
         while (true) {
             cnt++;
-            if (predicate.test(result = execute(inputProvider.get(), function))) break;
+            if (predicate.test(result = execute(supplier.get(), function))) break;
 
             boolean timeout = clock.instant().plus(interval).isAfter(endInstant);
             if (timeout) {
