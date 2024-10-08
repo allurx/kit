@@ -19,7 +19,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
-import static red.zyc.kit.base.ConditionalFlow.when;
+import static red.zyc.kit.base.Conditional.when;
 
 /**
  * A Poller implementation that limits the number of polling attempts.

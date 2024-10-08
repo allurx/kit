@@ -31,7 +31,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 import java.util.stream.Collectors;
 
-import static red.zyc.kit.base.ConditionalFlow.when;
+import static red.zyc.kit.base.Conditional.when;
 
 /**
  * Represents a Chrome browser instance that can be controlled via WebDriver.

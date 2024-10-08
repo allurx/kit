@@ -17,25 +17,25 @@ package red.zyc.kit.base.test;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import red.zyc.kit.base.ConditionalFlow;
+import red.zyc.kit.base.Conditional;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.stream.IntStream;
 
-import static red.zyc.kit.base.ConditionalFlow.when;
+import static red.zyc.kit.base.Conditional.when;
 
 /**
- * Unit tests for {@link ConditionalFlow}.
+ * Unit tests for {@link Conditional}.
  * <p>
- * This test class verifies the behavior of the {@link ConditionalFlow} class
+ * This test class verifies the behavior of the {@link Conditional} class
  * by running a large number of asynchronous tasks that execute various
  * conditional flows.
  * </p>
  *
  * @author allurx
  */
-public class ConditionalFlowTest {
+public class ConditionalTest {
 
     /**
      * Tests the conditional flow with a large number of asynchronous tasks.
@@ -58,7 +58,7 @@ public class ConditionalFlowTest {
     /**
      * Executes a series of conditional operations and verifies the result.
      * <p>
-     * This method demonstrates the usage of {@link ConditionalFlow} by defining
+     * This method demonstrates the usage of {@link Conditional} by defining
      * multiple conditional branches with different outcomes. The expected result
      * is compared with the actual result to ensure correctness.
      * </p>
