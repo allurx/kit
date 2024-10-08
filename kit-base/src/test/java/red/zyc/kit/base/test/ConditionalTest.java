@@ -19,62 +19,45 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import red.zyc.kit.base.Conditional;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
-import java.util.stream.IntStream;
-
 import static red.zyc.kit.base.Conditional.when;
 
 /**
  * Unit tests for {@link Conditional}.
- * <p>
- * This test class verifies the behavior of the {@link Conditional} class
- * by running a large number of asynchronous tasks that execute various
- * conditional flows.
- * </p>
  *
  * @author allurx
  */
 public class ConditionalTest {
 
     /**
-     * Tests the conditional flow with a large number of asynchronous tasks.
-     * <p>
-     * This test creates 1,000,000 asynchronous tasks using virtual threads,
-     * each executing the {@link #conditionalFlow()} method. The test waits
-     * for all tasks to complete before finishing.
-     * </p>
+     * Tests a conditional flow with multiple branches and returns the result.
      */
     @Test
-    void testConditionalFlow() {
-        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
-            CompletableFuture.allOf(IntStream.range(0, 1000000)
-                            .mapToObj(operand -> CompletableFuture.runAsync(this::conditionalFlow, executor))
-                            .toArray(CompletableFuture[]::new))
-                    .join();
-        }
+    void testConditional() {
+        var result = when(() -> false).run(() -> System.out.println("if"))
+                .elseIf(() -> false).run(() -> System.out.println("else if"))
+                .elseIf(() -> false).throwIt(RuntimeException::new)
+                .elseIf(() -> true).set(() -> 1)
+                .elseIf(() -> false).set(() -> "2")
+                .elseIf(() -> true).set(() -> 3)
+                .elseIf(() -> false).set(() -> "4")
+                .orElse().set(() -> 5)
+                .get();
+        Assertions.assertEquals(1, result);
     }
 
     /**
-     * Executes a series of conditional operations and verifies the result.
-     * <p>
-     * This method demonstrates the usage of {@link Conditional} by defining
-     * multiple conditional branches with different outcomes. The expected result
-     * is compared with the actual result to ensure correctness.
-     * </p>
+     * Tests conditional flow with input and result mapping.
      */
-    void conditionalFlow() {
-        var i
-                = when(() -> false).run(() -> System.out.println("if"))
-                .elseIf(() -> false).run(() -> System.out.println("else if"))
-                .elseIf(() -> false).throwIt(RuntimeException::new)
-                .elseIf(() -> true).supply(() -> 1)
-                .elseIf(() -> false).supply(() -> "2")
-                .elseIf(() -> true).supply(() -> 3)
-                .elseIf(() -> false).supply(() -> "4")
-                .orElse().supply(() -> 5)
-                .get();
-        Assertions.assertEquals(1, i);
+    @Test
+    void testConditionalWithInput() {
+        var result =
+                Conditional.of(6)
+                        .when(i -> i <= 3).run(() -> System.out.println("if"))
+                        .elseIf(i -> i > 3 && i <= 6).run(() -> System.out.println("else if")).map(i -> "result").peek(System.out::println)
+                        .orElse().run(() -> System.out.println("else"))
+                        .<String>getAsType();
+        Assertions.assertEquals("result", result);
     }
 
 }
+

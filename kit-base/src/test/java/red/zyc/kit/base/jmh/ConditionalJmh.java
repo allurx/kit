@@ -45,14 +45,14 @@ import static red.zyc.kit.base.Conditional.when;
  *
  * @author allurx
  */
-@Fork(3)
+@Fork(1)
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
 @State(Scope.Thread)
 @Threads(Threads.MAX)
 @Warmup(iterations = 3, time = 8)
 @Measurement(iterations = 3, time = 8)
-public class ConditionalFlowJmh {
+public class ConditionalJmh {
 
     /**
      * Native if-else construct for testing basic conditional logic performance.
@@ -61,7 +61,7 @@ public class ConditionalFlowJmh {
      * @param blackhole Blackhole to consume the result and prevent JIT optimizations
      */
     @Benchmark
-    public void testNativeConditionalFlow(Blackhole blackhole) {
+    public void testNativeConditional(Blackhole blackhole) {
         String result;
         if (FunctionConstants.FALSE_PREDICATE.test(null)) {
             result = "if";
@@ -80,11 +80,11 @@ public class ConditionalFlowJmh {
      * @param blackhole Blackhole to consume the result and prevent JIT optimizations
      */
     @Benchmark
-    public void testConditionalFlow(Blackhole blackhole) {
+    public void testConditional(Blackhole blackhole) {
         var result
-                = when(FunctionConstants.FALSE_PREDICATE.test(null)).supply(() -> "if")
-                .elseIf(() -> FunctionConstants.FALSE_PREDICATE.test(null)).supply(() -> "else if")
-                .orElse().supply(() -> "else")
+                = when(FunctionConstants.FALSE_PREDICATE.test(null)).set(() -> "if")
+                .elseIf(() -> FunctionConstants.FALSE_PREDICATE.test(null)).set(() -> "else if")
+                .orElse().set(() -> "else")
                 .get();
         blackhole.consume(result);
     }

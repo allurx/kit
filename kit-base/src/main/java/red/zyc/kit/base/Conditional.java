@@ -17,10 +17,14 @@
 package red.zyc.kit.base;
 
 import red.zyc.kit.base.function.MultiOutputSupplier;
-import red.zyc.kit.base.reflection.TypeConverter;
 
 import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
+
+import static red.zyc.kit.base.reflection.TypeConverter.uncheckedCast;
 
 /**
  * A fluent API for conditional branching, similar to if-else statements.
@@ -49,50 +53,82 @@ import java.util.function.Supplier;
  * <strong>Note:</strong> This class is not thread-safe. Proper synchronization is needed
  * for concurrent use.
  *
- * @param <T> the type of the result produced by the conditions
+ * @param <T> the type of the input value
+ * @param <R> the type of the output value
  * @author allurx
  */
-public final class Conditional<T> {
-
-    private Conditional() {
-    }
+public final class Conditional<T, R> {
 
     /**
-     * The result of the conditional flow.
+     * The input value for the conditional flow.
      */
-    private T result;
+    private final T input;
+
+    /**
+     * The output value of the conditional flow.
+     */
+    private R output;
 
     /**
      * Flag indicating if any condition has been satisfied.
      */
     private boolean hit = false;
 
-    /**
-     * Starts a conditional flow with the given condition.
-     *
-     * @param condition the initial condition
-     * @param <T>       the type of result expected
-     * @return an {@link Conditional.IfBranch} to continue the flow
-     */
-    public static <T> Conditional<T>.IfBranch when(boolean condition) {
-        return new Conditional<T>().new IfBranch(condition);
+    private Conditional(T input) {
+        this.input = input;
     }
 
     /**
-     * Starts a conditional flow using a {@link BooleanSupplier} for the condition.
+     * Creates a new {@code Conditional} instance with the specified input value.
      *
-     * @param booleanSupplier the supplier providing the condition
-     * @param <T>             the type of result expected
-     * @return an {@link Conditional.IfBranch} to proceed with the flow
+     * @param value the input value for the conditional flow
+     * @param <T>   the type of the input value
+     * @param <R>   the type of the result
+     * @return a new {@code Conditional} instance
      */
-    public static <T> Conditional<T>.IfBranch when(BooleanSupplier booleanSupplier) {
+    public static <T, R> Conditional<T, R> of(T value) {
+        return new Conditional<>(value);
+    }
+
+    /**
+     * Starts a conditional flow with a given boolean condition.
+     *
+     * @param condition the initial boolean condition to evaluate
+     * @param <T>       the type of the input value
+     * @param <R>       the type of the result
+     * @return an {@link Conditional.IfBranch} to continue the flow
+     */
+    public static <T, R> Conditional<T, R>.IfBranch when(boolean condition) {
+        return new Conditional<T, R>(null).new IfBranch(condition);
+    }
+
+    /**
+     * Starts a conditional flow with a {@link BooleanSupplier} that provides the condition.
+     *
+     * @param booleanSupplier the supplier providing the boolean condition
+     * @param <T>             the type of the input value
+     * @param <R>             the type of the result
+     * @return an {@link Conditional.IfBranch} to continue the flow
+     */
+    public static <T, R> Conditional<T, R>.IfBranch when(BooleanSupplier booleanSupplier) {
         return when(booleanSupplier.getAsBoolean());
+    }
+
+    /**
+     * Starts a conditional flow with a predicate to evaluate against the input value.
+     *
+     * @param predicate the predicate to test the input value
+     * @return an {@link IfBranch} to continue the flow
+     */
+    public IfBranch when(Predicate<? super T> predicate) {
+        return new IfBranch(predicate.test(input));
     }
 
     /**
      * Represents the "if" branch in the conditional flow.
      */
     public class IfBranch extends DerivableBranch<IfBranch> {
+
         IfBranch(boolean branchHit) {
             super(branchHit);
         }
@@ -102,6 +138,7 @@ public final class Conditional<T> {
      * Represents the "else if" branch in the conditional flow.
      */
     public class ElseIfBranch extends DerivableBranch<ElseIfBranch> {
+
         ElseIfBranch(boolean branchHit) {
             super(branchHit);
         }
@@ -111,6 +148,7 @@ public final class Conditional<T> {
      * Represents the "else" branch in the conditional flow.
      */
     public class ElseBranch extends BaseBranch<ElseBranch> {
+
         ElseBranch(boolean branchHit) {
             super(branchHit);
         }
@@ -121,20 +159,30 @@ public final class Conditional<T> {
      *
      * @param <B> the type of the derived branch
      */
-    private class DerivableBranch<B> extends BaseBranch<B> {
+    private abstract class DerivableBranch<B extends DerivableBranch<B>> extends BaseBranch<B> {
 
         DerivableBranch(boolean branchHit) {
             super(branchHit);
         }
 
         /**
-         * Adds an "else if" condition to the flow.
+         * Adds an "else if" condition to the flow using a boolean supplier.
          *
          * @param booleanSupplier the supplier providing the condition
          * @return an {@link ElseIfBranch} to continue the flow
          */
         public ElseIfBranch elseIf(BooleanSupplier booleanSupplier) {
             return new ElseIfBranch(!hit && booleanSupplier.getAsBoolean());
+        }
+
+        /**
+         * Adds an "else if" condition based on a predicate.
+         *
+         * @param predicate the predicate to test
+         * @return an {@link ElseIfBranch} to continue the flow
+         */
+        public ElseIfBranch elseIf(Predicate<? super T> predicate) {
+            return new ElseIfBranch(!hit && predicate.test(input));
         }
 
         /**
@@ -152,7 +200,7 @@ public final class Conditional<T> {
      *
      * @param <B> the type of the current branch
      */
-    private class BaseBranch<B> implements Branch<T, B> {
+    private abstract class BaseBranch<B extends BaseBranch<B>> implements Branch<T, R> {
 
         /**
          * Whether the current branch condition is satisfied.
@@ -171,8 +219,20 @@ public final class Conditional<T> {
         }
 
         @Override
-        public B supply(Supplier<? extends T> supplier) {
-            if (branchHit) result = supplier.get();
+        public B peek(Consumer<? super R> consumer) {
+            if (branchHit) consumer.accept(output);
+            return self();
+        }
+
+        @Override
+        public B set(Supplier<? extends R> supplier) {
+            if (branchHit) output = supplier.get();
+            return self();
+        }
+
+        @Override
+        public B map(Function<? super T, ? extends R> function) {
+            if (branchHit) output = function.apply(input);
             return self();
         }
 
@@ -182,15 +242,9 @@ public final class Conditional<T> {
             return self();
         }
 
-        /**
-         * Returns the result produced by the branch where the condition was met,
-         * or {@code null} if no conditions were satisfied.
-         *
-         * @return the result from the matched branch, or {@code null}
-         */
         @Override
-        public T get() {
-            return result;
+        public R get() {
+            return output;
         }
 
         /**
@@ -200,42 +254,60 @@ public final class Conditional<T> {
          * @return the current instance
          */
         private B self() {
-            return TypeConverter.uncheckedCast(this);
+            return uncheckedCast(this);
         }
     }
 
     /**
      * Defines operations that can be performed on a branch.
      *
-     * @param <R> the result type returned by the branch
-     * @param <B> the type of the current branch
+     * @param <T> the type of the input value
+     * @param <R> the type of the output value
      */
-    private interface Branch<R, B> extends MultiOutputSupplier<R> {
+    private interface Branch<T, R> extends MultiOutputSupplier<R> {
 
         /**
-         * Executes the provided {@link Runnable} if the branch condition is satisfied.
+         * Runs the action if the branch condition is satisfied.
          *
-         * @param runnable the action to execute
+         * @param runnable the action to run
          * @return the current branch instance
          */
-        B run(Runnable runnable);
+        Branch<T, R> run(Runnable runnable);
 
         /**
-         * Supplies a result if the branch condition is satisfied.
+         * Processes the output if the condition is satisfied.
          *
-         * @param supplier the supplier providing the result
+         * @param consumer the consumer to handle the output
          * @return the current branch instance
          */
-        B supply(Supplier<? extends R> supplier);
+        Branch<T, R> peek(Consumer<? super R> consumer);
+
+        /**
+         * Sets the output if the branch condition is satisfied.
+         *
+         * @param supplier the supplier providing the output
+         * @return the current branch instance
+         */
+        Branch<T, R> set(Supplier<? extends R> supplier);
+
+        /**
+         * Maps the input to an output if the branch condition is satisfied.
+         *
+         * @param function the mapping function
+         * @return the current branch instance
+         */
+        Branch<T, R> map(Function<? super T, ? extends R> function);
 
         /**
          * Throws an exception if the branch condition is satisfied.
          *
-         * @param supplier the supplier providing the exception
+         * @param supplier the exception supplier
          * @param <X>      the type of exception
          * @return the current branch instance
          * @throws X the exception thrown
          */
-        <X extends Throwable> B throwIt(Supplier<? extends X> supplier) throws X;
+        <X extends Throwable> Branch<T, R> throwIt(Supplier<? extends X> supplier) throws X;
     }
+
 }
+

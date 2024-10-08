@@ -15,6 +15,7 @@
  */
 package red.zyc.kit.base.function;
 
+import red.zyc.kit.base.Conditional;
 import red.zyc.kit.base.reflection.TypeConverter;
 
 import java.util.Optional;
@@ -35,6 +36,16 @@ public interface MultiOutputSupplier<T> extends Supplier<T> {
      */
     default Optional<T> getAsOptional() {
         return Optional.ofNullable(get());
+    }
+
+    /**
+     * Returns the result wrapped in an {@link Conditional}.
+     *
+     * @param <R> the type of the result in the new {@link Conditional} instance
+     * @return the result wrapped in an {@link Conditional}.
+     */
+    default <R> Conditional<T, R> getAsConditional() {
+        return Conditional.of(get());
     }
 
     /**
