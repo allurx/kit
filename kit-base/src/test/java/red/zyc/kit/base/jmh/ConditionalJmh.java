@@ -45,7 +45,7 @@ import static red.zyc.kit.base.Conditional.when;
  *
  * @author allurx
  */
-@Fork(1)
+@Fork(3)
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
 @State(Scope.Thread)
