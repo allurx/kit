@@ -26,20 +26,20 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
-import red.zyc.kit.base.ConditionalFlow;
+import red.zyc.kit.base.Conditional;
 import red.zyc.kit.base.constant.FunctionConstants;
 
 import java.util.concurrent.TimeUnit;
 
-import static red.zyc.kit.base.ConditionalFlow.when;
+import static red.zyc.kit.base.Conditional.when;
 
 /**
- * Benchmark tests comparing native if-else constructs with the ConditionalFlow class implementation.
+ * Benchmark tests comparing native if-else constructs with the Conditional class implementation.
  * This class uses the JMH framework to measure throughput in operations per millisecond.
  * The test scenarios involve:
  * <ui>
  * <li>A standard if-else construct.</li>
- * <li>The ConditionalFlow implementation to handle the same logic.</li>
+ * <li>The Conditional implementation to handle the same logic.</li>
  * </ui>
  * Each test will run with several iterations of warmup and measurement to gather performance data.
  *
@@ -52,7 +52,7 @@ import static red.zyc.kit.base.ConditionalFlow.when;
 @Threads(Threads.MAX)
 @Warmup(iterations = 3, time = 8)
 @Measurement(iterations = 3, time = 8)
-public class ConditionalFlowJmh {
+public class ConditionalJmh {
 
     /**
      * Native if-else construct for testing basic conditional logic performance.
@@ -61,7 +61,7 @@ public class ConditionalFlowJmh {
      * @param blackhole Blackhole to consume the result and prevent JIT optimizations
      */
     @Benchmark
-    public void testNativeConditionalFlow(Blackhole blackhole) {
+    public void testNativeConditional(Blackhole blackhole) {
         String result;
         if (FunctionConstants.FALSE_PREDICATE.test(null)) {
             result = "if";
@@ -74,17 +74,17 @@ public class ConditionalFlowJmh {
     }
 
     /**
-     * Test using  {@link ConditionalFlow} to handle the same conditional logic.
-     * This method demonstrates how the ConditionalFlow API is used to replace standard if-else logic.
+     * Test using  {@link Conditional} to handle the same conditional logic.
+     * This method demonstrates how the Conditional API is used to replace standard if-else logic.
      *
      * @param blackhole Blackhole to consume the result and prevent JIT optimizations
      */
     @Benchmark
-    public void testConditionalFlow(Blackhole blackhole) {
+    public void testConditional(Blackhole blackhole) {
         var result
-                = when(FunctionConstants.FALSE_PREDICATE.test(null)).supply(() -> "if")
-                .elseIf(() -> FunctionConstants.FALSE_PREDICATE.test(null)).supply(() -> "else if")
-                .orElse().supply(() -> "else")
+                = when(FunctionConstants.FALSE_PREDICATE.test(null)).set(() -> "if")
+                .elseIf(() -> FunctionConstants.FALSE_PREDICATE.test(null)).set(() -> "else if")
+                .orElse().set(() -> "else")
                 .get();
         blackhole.consume(result);
     }

@@ -16,6 +16,7 @@
 package red.zyc.kit.base.concurrency;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -108,16 +109,17 @@ public abstract class BasePoller implements Poller {
         /**
          * {@link BasePoller#ignoredExceptions}
          */
-        protected List<Class<? extends Throwable>> ignoredExceptions = new ArrayList<>();
+        protected List<Class<? extends Throwable>> ignoredExceptions;
 
         /**
-         * Adds an exception type to the list of ignored exceptions. Poller will ignore these exceptions during execution.
+         * Sets the list of ignored exceptions. Poller will ignore all exceptions in this list during execution.
          *
-         * @param ignoredException the exception class to ignore
+         * @param ignoredExceptions the array of exception classes to ignore
          * @return the builder instance for chaining
          */
-        public B ignoreExceptions(Class<? extends Throwable> ignoredException) {
-            this.ignoredExceptions.add(Objects.requireNonNull(ignoredException, "The Ignore Exception cannot be null"));
+        @SafeVarargs
+        public final B ignoreExceptions(Class<? extends Throwable>... ignoredExceptions) {
+            this.ignoredExceptions = Arrays.stream(Objects.requireNonNull(ignoredExceptions, "The Array of ignored exceptions cannot be null")).toList();
             return uncheckedCast(this);
         }
 

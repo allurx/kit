@@ -19,7 +19,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
-import static red.zyc.kit.base.ConditionalFlow.when;
+import static red.zyc.kit.base.Conditional.when;
 
 /**
  * A Poller implementation that limits the number of polling attempts.
@@ -99,7 +99,7 @@ public class CountBasedPoller extends BasePoller {
          * @throws IllegalArgumentException if the count is less than or equal to 0
          */
         public CountBasedPollerBuilder count(int count) {
-            return when(count > 0).run(() -> this.count = count).supply(() -> this)
+            return when(count > 0).run(() -> this.count = count).set(() -> this)
                     .orElse().throwIt(() -> new IllegalArgumentException("The maximum number of polling attempts must be greater than 0. Provided value: %s".formatted(count)))
                     .getAsType();
         }
