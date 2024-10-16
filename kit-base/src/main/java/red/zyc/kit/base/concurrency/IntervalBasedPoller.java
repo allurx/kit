@@ -26,16 +26,13 @@ import java.util.function.Supplier;
 /**
  * A Poller implementation that limits polling attempts based on a specified time duration and interval.
  * Polling stops either when the time duration expires or the termination condition is satisfied.
- * Supports custom sleeping behavior between polling attempts and a timeout action when polling times out.
- * <p>Example usage of IntervalBasedPoller.</p>
+ * Supports custom sleeping behavior between polling attempts.
+ * <p>Example usage of {@code IntervalBasedPoller}.</p>
  *
  * <pre>
  * {@code
  * IntervalBasedPoller poller = IntervalBasedPoller.builder()
  *         .timing(Duration.ofSeconds(3), Duration.ofMillis(300))
- *         .timeoutAction(() -> {
- *             throw new RuntimeException("timeout");
- *         })
  *         .build();
  *
  * var ai = new AtomicInteger(0);

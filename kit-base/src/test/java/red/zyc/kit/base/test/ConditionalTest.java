@@ -33,7 +33,8 @@ public class ConditionalTest {
      */
     @Test
     void testConditional() {
-        var result = when(() -> false).run(() -> System.out.println("if"))
+        var result
+                = when(() -> false).run(() -> System.out.println("if"))
                 .elseIf(() -> false).run(() -> System.out.println("else if"))
                 .elseIf(() -> false).throwIt(RuntimeException::new)
                 .elseIf(() -> true).set(() -> 1)
@@ -50,12 +51,11 @@ public class ConditionalTest {
      */
     @Test
     void testConditionalWithInput() {
-        var result =
-                Conditional.of(6)
-                        .when(i -> i <= 3).run(() -> System.out.println("if"))
-                        .elseIf(i -> i > 3 && i <= 6).run(() -> System.out.println("else if")).map(i -> "result").peek(System.out::println)
-                        .orElse().run(() -> System.out.println("else"))
-                        .<String>getAsType();
+        var result = Conditional.of(6)
+                .when(i -> i <= 3).run(() -> System.out.println("if"))
+                .elseIf(i -> i > 3 && i <= 6).run(() -> System.out.println("else if")).map(i -> "result").peek(System.out::println)
+                .orElse().run(() -> System.out.println("else"))
+                .<String>getAsType();
         Assertions.assertEquals("result", result);
     }
 

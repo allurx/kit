@@ -32,7 +32,7 @@ import java.lang.reflect.WildcardType;
  * </p>
  * <pre>
  *    {@code
- *      new TypeToken<List<String>>() {}.getCapturedType() => java.util.List<java.lang.String>
+ *      new TypeToken<List<String>>() {}.getType() => java.util.List<java.lang.String>
  *    }
  * </pre>
  *
