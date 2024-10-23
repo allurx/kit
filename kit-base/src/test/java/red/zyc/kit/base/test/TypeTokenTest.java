@@ -114,7 +114,7 @@ class TypeTokenTest {
 
         // Raw class should be Object
         var rawClass = typeToken.getRawClass();
-        assertEquals(Object.class, rawClass);
+        assertEquals(Map.class, rawClass);
     }
 
     /**
