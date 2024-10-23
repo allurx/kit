@@ -38,6 +38,12 @@ import java.lang.reflect.WildcardType;
  *
  * @param <T> The generic type to be captured
  * @author allurx
+ * @see Type
+ * @see Class
+ * @see ParameterizedType
+ * @see GenericArrayType
+ * @see TypeVariable
+ * @see WildcardType
  */
 public abstract class TypeToken<T> {
 
@@ -52,10 +58,10 @@ public abstract class TypeToken<T> {
      * the generic type of {@code T} can be retrieved at compile time.
      */
     protected TypeToken() {
-        capturedType = capture();
+        this.capturedType = capture();
     }
 
-    private TypeToken(Type type) {
+    protected TypeToken(Type type) {
         this.capturedType = type;
     }
 

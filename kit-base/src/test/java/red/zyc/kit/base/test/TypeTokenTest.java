@@ -20,7 +20,6 @@ import red.zyc.kit.base.reflection.TypeToken;
 
 import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.lang.reflect.WildcardType;
 import java.util.List;
@@ -35,7 +34,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
  *
  * @author allurx
  */
-public class TypeTokenTest {
+class TypeTokenTest {
 
     /**
      * Tests capturing the class type directly.
@@ -92,6 +91,7 @@ public class TypeTokenTest {
      * Tests capturing a type variable with bounds, e.g., {@code T extends Map<Integer, String> & AutoCloseable}.
      * <p>Validates bounds and type arguments of the type variable.</p>
      *
+     * @param <T> a type variable with bounds
      * @see TypeVariable
      */
     @Test
@@ -101,7 +101,7 @@ public class TypeTokenTest {
         var capturedType = assertInstanceOf(TypeVariable.class, typeToken.getType());
 
         // T's bounds: Map<Integer, String> & AutoCloseable
-        Type[] bounds = capturedType.getBounds();
+        var bounds = capturedType.getBounds();
 
         // Check bounds[0] - Map<Integer, String>
         var bound0 = assertInstanceOf(ParameterizedType.class, bounds[0]);
