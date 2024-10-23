@@ -64,9 +64,9 @@ public abstract class AnnotatedTypeToken<T> extends TypeToken<T> {
     }
 
     /**
-     * Creates an {@code AnnotatedTypeToken} from a given {@link AnnotatedType}.
+     * Constructs an {@code AnnotatedTypeToken} from a given {@link AnnotatedType}.
      *
-     * @param annotatedType the annotated type to capture
+     * @param annotatedType the annotated type
      */
     protected AnnotatedTypeToken(AnnotatedType annotatedType) {
         super(annotatedType.getType());

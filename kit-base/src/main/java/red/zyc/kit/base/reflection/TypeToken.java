@@ -63,6 +63,11 @@ public abstract class TypeToken<T> {
         this.capturedType = capture();
     }
 
+    /**
+     * Constructs an {@code TypeToken} from a given {@link Type}.
+     *
+     * @param type the type
+     */
     protected TypeToken(Type type) {
         this.capturedType = type;
     }
