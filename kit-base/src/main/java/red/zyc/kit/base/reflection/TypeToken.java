@@ -22,6 +22,8 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.lang.reflect.WildcardType;
+import java.util.Arrays;
+import java.util.stream.Stream;
 
 /**
  * Utility class for capturing and storing generic types.
@@ -38,6 +40,12 @@ import java.lang.reflect.WildcardType;
  *
  * @param <T> The generic type to be captured
  * @author allurx
+ * @see Type
+ * @see Class
+ * @see ParameterizedType
+ * @see GenericArrayType
+ * @see TypeVariable
+ * @see WildcardType
  */
 public abstract class TypeToken<T> {
 
@@ -52,10 +60,15 @@ public abstract class TypeToken<T> {
      * the generic type of {@code T} can be retrieved at compile time.
      */
     protected TypeToken() {
-        capturedType = capture();
+        this.capturedType = capture();
     }
 
-    private TypeToken(Type type) {
+    /**
+     * Constructs an {@code TypeToken} from a given {@link Type}.
+     *
+     * @param type the type
+     */
+    protected TypeToken(Type type) {
         this.capturedType = type;
     }
 
@@ -85,11 +98,9 @@ public abstract class TypeToken<T> {
      * <ul>
      * <li>If {@link T} is a non-generic {@link Class}, e.g., {@code String}, it returns the class itself.</li>
      * <li>If {@link T} is a {@link ParameterizedType}, e.g., {@code List<String>}, it returns {@code List.class}.</li>
-     * <li>If {@link T} is a {@link TypeVariable}, e.g., {@code T}, returning {@code Object.class} is safe,
-     *     as it may have multiple upper or lower bounds.</li>
+     * <li>If {@link T} is a {@link TypeVariable}, e.g., {@code T}, return its first upper bound.</li>
      * <li>If {@link T} is a {@link GenericArrayType}, e.g., {@code List<String>[]}, it returns {@code List[].class}.</li>
-     * <li>If {@link T} is a {@link WildcardType}, e.g., {@code ?}, an exception is thrown, as wildcard types
-     *     cannot be directly instantiated and should not occur in this context.</li>
+     * <li>If {@link T} is a {@link WildcardType}, e.g., {@code ?}, return its upper or lower bound.</li>
      * </ul>
      *
      * <p>This method helps avoid <b>unchecked</b> warnings from the compiler.</p>
@@ -115,11 +126,16 @@ public abstract class TypeToken<T> {
         var clazz = switch (capturedType) {
             case Class<?> c -> c;
             case ParameterizedType parameterizedType -> (Class<?>) parameterizedType.getRawType();
-            case TypeVariable<?> ignored -> Object.class;
+            case TypeVariable<?> typeVariable -> of(typeVariable.getBounds()[0]).getRawClass();
             case GenericArrayType genericArrayType ->
                     Array.newInstance(of(genericArrayType.getGenericComponentType()).getRawClass(), 0).getClass();
-            case WildcardType wildcardType -> throw new IllegalStateException("Unexpected value: " + wildcardType);
-            default -> throw new IllegalStateException("Unexpected value: " + capturedType);
+            case WildcardType wildcardType -> Stream.of(wildcardType.getLowerBounds(), wildcardType.getUpperBounds())
+                    .flatMap(Arrays::stream)
+                    .findFirst()
+                    .map(TypeToken::of)
+                    .map(TypeToken::getRawClass)
+                    .orElseThrow(() -> new IllegalStateException("WildcardType must declare at least one upper or lower bound as specified by the Java Language Specification: %s".formatted(capturedType)));
+            default -> throw new IllegalArgumentException("Unexpected type: %s".formatted(capturedType));
         };
         return TypeConverter.uncheckedCast(clazz);
     }
@@ -152,4 +168,5 @@ public abstract class TypeToken<T> {
         }
         return ((ParameterizedType) superclass).getActualTypeArguments()[0];
     }
+
 }

@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * @author allurx
  */
-public class IntervalBasedPollerTest {
+class IntervalBasedPollerTest {
 
     // Create an IntervalBasedPoller with a timing interval of 3 seconds and a polling interval of 300 milliseconds
     IntervalBasedPoller poller = IntervalBasedPoller.builder()

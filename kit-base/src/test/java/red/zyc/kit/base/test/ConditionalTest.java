@@ -26,7 +26,7 @@ import static red.zyc.kit.base.Conditional.when;
  *
  * @author allurx
  */
-public class ConditionalTest {
+class ConditionalTest {
 
     /**
      * Tests a conditional flow with multiple branches and returns the result.

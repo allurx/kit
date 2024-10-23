@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * @author allurx
  */
-public class CountBasedPollerTest {
+class CountBasedPollerTest {
 
     // Create a CountBasedPoller with a maximum of 20 polling attempts
     CountBasedPoller poller = CountBasedPoller.builder()
