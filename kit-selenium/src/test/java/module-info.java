@@ -18,10 +18,10 @@
  *
  * @author allurx
  */
-module red.zyc.kit.selenium.test {
-    requires red.zyc.kit.selenium;
+module io.allurx.kit.selenium.test {
+    requires io.allurx.kit.selenium;
     requires org.junit.jupiter.api;
     requires org.seleniumhq.selenium.api;
-    exports red.zyc.kit.selenium.test;
-    opens red.zyc.kit.selenium.test;
+    exports io.allurx.kit.selenium.test;
+    opens io.allurx.kit.selenium.test;
 }

@@ -18,10 +18,10 @@
  *
  * @author allurx
  */
-module red.zyc.kit.json.test {
+module io.allurx.kit.json.test {
     requires org.junit.jupiter.api;
-    requires red.zyc.kit.base;
-    requires red.zyc.kit.json;
-    exports red.zyc.kit.json.test;
-    opens red.zyc.kit.json.test;
+    requires io.allurx.kit.base;
+    requires io.allurx.kit.json;
+    exports io.allurx.kit.json.test;
+    opens io.allurx.kit.json.test;
 }

@@ -13,16 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package io.allurx.kit.base.constant;
+
 /**
- * mybatis module
+ * Defines constants for date and time format patterns.
+ * <p>This class provides static constants for commonly used date and time format patterns to ensure consistency across the application.</p>
  *
  * @author allurx
  */
-module io.allurx.kit.mybatis {
-    requires org.mybatis;
-    requires java.sql;
-    requires io.allurx.kit.json;
-    requires com.fasterxml.jackson.annotation;
-    requires com.fasterxml.jackson.databind;
-    exports io.allurx.kit.mybatis.handler;
+public final class DateTimeFormatConstants {
+
+    private DateTimeFormatConstants() {
+    }
+
+    /**
+     * The date and time format pattern for "yyyy-MM-dd HH:mm:ss".
+     * <p>This format represents date and time with year, month, day, hour, minute, and second.</p>
+     */
+    public static final String YYYY_MM_DD_HH_MM_SS = "yyyy-MM-dd HH:mm:ss";
+
 }

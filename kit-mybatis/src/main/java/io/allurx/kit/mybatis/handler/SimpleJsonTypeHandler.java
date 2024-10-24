@@ -13,16 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+package io.allurx.kit.mybatis.handler;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.allurx.kit.json.JsonOperator;
+
+
 /**
- * mybatis module
+ * Serializes and deserializes objects using a simple configuration of {@link ObjectMapper}.
  *
+ * @param <T> The type of object returned by the mapper methods
  * @author allurx
  */
-module io.allurx.kit.mybatis {
-    requires org.mybatis;
-    requires java.sql;
-    requires io.allurx.kit.json;
-    requires com.fasterxml.jackson.annotation;
-    requires com.fasterxml.jackson.databind;
-    exports io.allurx.kit.mybatis.handler;
+public class SimpleJsonTypeHandler<T> extends AbstractJsonTypeHandler<T, ObjectMapper> {
+
+    /**
+     * Constructor.
+     *
+     * @param clazz The type of object returned
+     */
+    public SimpleJsonTypeHandler(Class<T> clazz) {
+        super(JsonOperator.JACKSON_OPERATOR.with(ObjectMapper::copy), clazz);
+    }
 }
+

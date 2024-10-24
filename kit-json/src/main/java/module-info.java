@@ -18,9 +18,9 @@
  *
  * @author allurx
  */
-module red.zyc.kit.json {
-    exports red.zyc.kit.json;
-    requires red.zyc.kit.base;
+module io.allurx.kit.json {
+    exports io.allurx.kit.json;
+    requires io.allurx.kit.base;
     requires com.google.gson;
     requires com.fasterxml.jackson.databind;
     requires com.fasterxml.jackson.datatype.jsr310;

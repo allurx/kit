@@ -2,7 +2,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>red.zyc.kit</groupId>
+    <groupId>io.allurx.kit</groupId>
     <artifactId>kit</artifactId>
     <version>1.0.7</version>
     <packaging>pom</packaging>
@@ -62,7 +62,7 @@
         <developer>
             <name>allurx</name>
             <email>allurx.zyc@gmail.com</email>
-            <url>https://www.zyc.red</url>
+            <url>https://www.allurx.io</url>
         </developer>
     </developers>
 
@@ -71,17 +71,17 @@
 
             <!-- module -->
             <dependency>
-                <groupId>red.zyc.kit</groupId>
+                <groupId>io.allurx.kit</groupId>
                 <artifactId>kit-base</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>red.zyc.kit</groupId>
+                <groupId>io.allurx.kit</groupId>
                 <artifactId>kit-json</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>red.zyc.kit</groupId>
+                <groupId>io.allurx.kit</groupId>
                 <artifactId>kit-mybatis</artifactId>
                 <version>${project.version}</version>
             </dependency>

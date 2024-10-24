@@ -18,10 +18,10 @@
  *
  * @author allurx
  */
-module red.zyc.kit.selenium {
-    exports red.zyc.kit.selenium;
+module io.allurx.kit.selenium {
+    exports io.allurx.kit.selenium;
     requires org.slf4j;
     requires org.seleniumhq.selenium.chrome_driver;
     requires dev.failsafe.core;
-    requires red.zyc.kit.base;
+    requires io.allurx.kit.base;
 }
