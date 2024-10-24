@@ -9,7 +9,7 @@ To use Kit in your Maven project, add the following dependency to your `pom.xml`
 
 ```xml
 <dependency>
-    <groupId>red.zyc.kit</groupId>
+    <groupId>io.allurx.kit</groupId>
     <artifactId>kit-${module}</artifactId>
     <version>${latest version}</version>
 </dependency>

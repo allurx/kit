@@ -2,9 +2,9 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <groupId>red.zyc.kit</groupId>
+        <groupId>io.allurx.kit</groupId>
         <artifactId>kit</artifactId>
-        <version>1.0.7</version>
+        <version>2.0.0</version>
     </parent>
 
     <artifactId>kit-mybatis</artifactId>
@@ -13,7 +13,7 @@
 
     <dependencies>
         <dependency>
-            <groupId>red.zyc.kit</groupId>
+            <groupId>io.allurx.kit</groupId>
             <artifactId>kit-json</artifactId>
         </dependency>
         <dependency>

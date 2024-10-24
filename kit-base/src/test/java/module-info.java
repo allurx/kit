@@ -18,15 +18,15 @@
  *
  * @author allurx
  */
-module red.zyc.kit.base.test {
-    requires red.zyc.kit.base;
+module io.allurx.kit.base.test {
+    requires io.allurx.kit.base;
     requires org.junit.jupiter.api;
     requires jmh.core;
     requires java.net.http;
-    exports red.zyc.kit.base.test;
-    exports red.zyc.kit.base.jmh;
-    exports red.zyc.kit.base.test.poller;
-    opens red.zyc.kit.base.jmh;
-    opens red.zyc.kit.base.test;
-    opens red.zyc.kit.base.test.poller;
+    exports io.allurx.kit.base.test;
+    exports io.allurx.kit.base.jmh;
+    exports io.allurx.kit.base.test.poller;
+    opens io.allurx.kit.base.jmh;
+    opens io.allurx.kit.base.test;
+    opens io.allurx.kit.base.test.poller;
 }

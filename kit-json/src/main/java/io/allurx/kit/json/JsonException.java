@@ -13,16 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+package io.allurx.kit.json;
+
 /**
- * mybatis module
+ * Exception for JSON errors.
  *
  * @author allurx
  */
-module io.allurx.kit.mybatis {
-    requires org.mybatis;
-    requires java.sql;
-    requires io.allurx.kit.json;
-    requires com.fasterxml.jackson.annotation;
-    requires com.fasterxml.jackson.databind;
-    exports io.allurx.kit.mybatis.handler;
+public class JsonException extends RuntimeException {
+
+    /**
+     * Constructor.
+     *
+     * @param message The error message
+     * @param t       The cause of the exception, typically a {@link Throwable}
+     */
+    public JsonException(String message, Throwable t) {
+        super(message, t);
+    }
 }
+

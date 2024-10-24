@@ -13,16 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package io.allurx.kit.selenium;
+
 /**
- * mybatis module
+ * Exception thrown when the browser fails to start.
+ * Inherits from {@link BrowserException}.
  *
  * @author allurx
  */
-module io.allurx.kit.mybatis {
-    requires org.mybatis;
-    requires java.sql;
-    requires io.allurx.kit.json;
-    requires com.fasterxml.jackson.annotation;
-    requires com.fasterxml.jackson.databind;
-    exports io.allurx.kit.mybatis.handler;
+public class BrowserStartupFailureException extends BrowserException {
+
+    /**
+     * Constructs a new {@code BrowserStartupFailureException} with the specified detail message.
+     *
+     * @param message the detail message
+     */
+    public BrowserStartupFailureException(String message) {
+        super(message);
+    }
 }
+

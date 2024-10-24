@@ -18,10 +18,10 @@
  *
  * @author allurx
  */
-module red.zyc.kit.base {
-    exports red.zyc.kit.base;
-    exports red.zyc.kit.base.constant;
-    exports red.zyc.kit.base.function;
-    exports red.zyc.kit.base.reflection;
-    exports red.zyc.kit.base.concurrency;
+module io.allurx.kit.base {
+    exports io.allurx.kit.base;
+    exports io.allurx.kit.base.concurrency;
+    exports io.allurx.kit.base.constant;
+    exports io.allurx.kit.base.function;
+    exports io.allurx.kit.base.reflection;
 }
