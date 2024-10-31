@@ -24,9 +24,9 @@ module io.allurx.kit.base.test {
     requires jmh.core;
     requires java.net.http;
     exports io.allurx.kit.base.test;
-    exports io.allurx.kit.base.jmh;
+    exports io.allurx.kit.base.benchmark;
     exports io.allurx.kit.base.test.poller;
-    opens io.allurx.kit.base.jmh;
     opens io.allurx.kit.base.test;
+    opens io.allurx.kit.base.benchmark;
     opens io.allurx.kit.base.test.poller;
 }

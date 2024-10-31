@@ -20,6 +20,7 @@ import io.allurx.kit.base.reflection.TypeConverter;
 
 import java.util.Optional;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 /**
  * An interface that extends {@link Supplier} to provide multiple types of results.
@@ -41,11 +42,21 @@ public interface MultiOutputSupplier<T> extends Supplier<T> {
     /**
      * Returns the result wrapped in an {@link Conditional}.
      *
-     * @param <R> the type of the result in the new {@link Conditional} instance
      * @return the result wrapped in an {@link Conditional}.
      */
-    default <R> Conditional<T, R> getAsConditional() {
+    default Conditional<T> getAsConditional() {
         return Conditional.of(get());
+    }
+
+    /**
+     * Returns the result as a {@link Stream}.
+     * <p>
+     * If the result is null, an empty stream is returned.
+     *
+     * @return a {@link Stream} containing the result, or an empty stream if the result is null
+     */
+    default Stream<T> getAsStream() {
+        return get() == null ? Stream.empty() : Stream.of(get());
     }
 
     /**
@@ -60,4 +71,5 @@ public interface MultiOutputSupplier<T> extends Supplier<T> {
     default <R> R getAsType() {
         return TypeConverter.uncheckedCast(get());
     }
+
 }
