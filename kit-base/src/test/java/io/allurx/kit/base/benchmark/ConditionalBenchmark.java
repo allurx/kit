@@ -31,8 +31,6 @@ import org.openjdk.jmh.infra.Blackhole;
 
 import java.util.concurrent.TimeUnit;
 
-import static io.allurx.kit.base.Conditional.when;
-
 /**
  * Benchmark tests comparing native if-else constructs with the Conditional class implementation.
  * This class uses the JMH framework to measure throughput in operations per millisecond.
@@ -82,8 +80,9 @@ public class ConditionalBenchmark {
     @Benchmark
     public void testConditional(Blackhole blackhole) {
         var result
-                = when(FunctionConstants.FALSE_PREDICATE.test(null)).map(o -> "if")
-                .elseIf(() -> FunctionConstants.FALSE_PREDICATE.test(null)).map(o -> "else if")
+                = Conditional.of(FunctionConstants.FALSE_PREDICATE)
+                .when(predicate -> predicate.test(null)).map(o -> "if")
+                .elseIf(predicate -> predicate.test(null)).map(o -> "else if")
                 .orElse().map(o -> "else")
                 .get();
         blackhole.consume(result);

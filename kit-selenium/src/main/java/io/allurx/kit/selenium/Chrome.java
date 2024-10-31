@@ -31,8 +31,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 import java.util.stream.Collectors;
 
-import static io.allurx.kit.base.Conditional.when;
-
 /**
  * Represents a Chrome browser instance that can be controlled via WebDriver.
  * <p>
@@ -222,7 +220,7 @@ public final class Chrome implements AutoCloseable {
          */
         public Chrome build() {
             try {
-                when(chrome.mode == null).throwIt(() -> new IllegalStateException("Chrome mode not set"));
+                Optional.ofNullable(chrome.mode).orElseThrow(() -> new IllegalStateException("Chrome mode not set"));
                 switch (chrome.mode) {
                     case ATTACH -> {
 

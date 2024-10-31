@@ -19,8 +19,6 @@ import io.allurx.kit.base.Conditional;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-import static io.allurx.kit.base.Conditional.when;
-
 /**
  * Unit tests for {@link Conditional}.
  *
@@ -33,18 +31,17 @@ class ConditionalTest {
      */
     @Test
     void testConditional() {
-        var result
-                = when(() -> false).run(() -> System.out.println("if"))
-                .elseIf(() -> false).run(() -> System.out.println("else if"))
-                .elseIf(() -> false).throwIt(RuntimeException::new)
-                .elseIf(() -> true).map(o -> 1)
-                .elseIf(() -> false).map(o -> "2")
-                .elseIf(() -> true).map(o -> 3)
-                .elseIf(() -> false).map(o -> "4")
-                .elseIf(() -> false).map(o -> 5)
-                .orElse().map(o -> "6")
+        var result = Conditional.of("1")
+                .when(() -> false).map(s -> 2)
+                .elseIf(() -> false).map(s -> "3")
+                .elseIf(() -> false).map(o -> 4)
+                .elseIf(() -> false).map(o -> "5")
+                .elseIf(() -> true).map(o -> 6)
+                .elseIf(() -> true).map(o -> "7")
+                .elseIf(() -> false).map(o -> 8)
+                .orElse().map(o -> "9")
                 .<Integer>getAsType();
-        Assertions.assertEquals(1, result);
+        Assertions.assertEquals(6, result);
     }
 
     /**
@@ -53,11 +50,11 @@ class ConditionalTest {
     @Test
     void testConditionalWithInput() {
         var result = Conditional.of(6)
-                .when(i -> i <= 3).run(() -> System.out.println("if"))
-                .elseIf(i -> i > 3 && i <= 6).run(() -> System.out.println("else if")).map(i -> "else if")
-                .orElse().run(() -> System.out.println("else"))
-                .<String>getAsType();
-        Assertions.assertEquals("else if", result);
+                .when(i -> i <= 3).map(i -> i)
+                .elseIf(i -> i > 3 && i <= 6).map(i -> i * 2)
+                .orElse().map(i -> i * 3)
+                .get();
+        Assertions.assertEquals(12, result);
     }
 
 }

@@ -33,7 +33,8 @@ import static io.allurx.kit.base.reflection.TypeConverter.uncheckedCast;
  *
  * <p>Usage example:
  * <pre>{@code
- *      when(condition).run(() -> System.out.println("if"))
+ *      Conditional.of(input)
+ *     .when(condition).run(() -> System.out.println("if"))
  *     .elseIf(condition).run(() -> System.out.println("else if"))
  *     .orElse().run(() -> System.out.println("else"));
  * }</pre>
@@ -89,23 +90,19 @@ public final class Conditional<T> {
      * Initiates a conditional flow with a specified boolean condition.
      *
      * @param condition the initial condition to evaluate
-     * @param <T>       the type of the input value
-     * @param <R>       the type of the output value
      * @return an {@link Conditional.IfBranch} instance for further branching
      */
-    public static <T, R> Conditional<T>.IfBranch<R> when(boolean condition) {
-        return new Conditional<T>(null).new IfBranch<R>(condition, null);
+    public IfBranch<T> when(boolean condition) {
+        return new IfBranch<>(condition, input);
     }
 
     /**
      * Initiates a conditional flow using a {@link BooleanSupplier} to evaluate the condition.
      *
      * @param booleanSupplier the supplier that provides the boolean condition
-     * @param <T>             the type of the input value
-     * @param <R>             the type of the output value
      * @return an {@link Conditional.IfBranch} instance for further branching
      */
-    public static <T, R> Conditional<T>.IfBranch<R> when(BooleanSupplier booleanSupplier) {
+    public IfBranch<T> when(BooleanSupplier booleanSupplier) {
         return when(booleanSupplier.getAsBoolean());
     }
 
@@ -116,7 +113,7 @@ public final class Conditional<T> {
      * @return an {@link IfBranch} instance for further branching
      */
     public IfBranch<T> when(Predicate<? super T> predicate) {
-        return new IfBranch<>(predicate.test(input), null);
+        return new IfBranch<>(predicate.test(input), input);
     }
 
     /**
@@ -244,7 +241,7 @@ public final class Conditional<T> {
         }
 
         @Override
-        public B peek(Consumer<? super R> consumer) {
+        public B consume(Consumer<? super R> consumer) {
             if (branchHit) consumer.accept(output);
             return self();
         }
@@ -298,7 +295,7 @@ public final class Conditional<T> {
          * @param consumer the consumer that processes the branch's output
          * @return the current branch instance
          */
-        Branch<T> peek(Consumer<? super T> consumer);
+        Branch<T> consume(Consumer<? super T> consumer);
 
         /**
          * Maps the branch's output to a new type if the condition is satisfied.

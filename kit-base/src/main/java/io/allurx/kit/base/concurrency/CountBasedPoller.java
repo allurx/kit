@@ -99,13 +99,12 @@ public class CountBasedPoller extends BasePoller {
          * @throws IllegalArgumentException if the count is less than or equal to 0
          */
         public CountBasedPollerBuilder count(int count) {
-            return Conditional
+            return Conditional.of(this)
                     .when(count > 0)
-                    .run(() -> this.count = count)
-                    .map(o -> this)
+                    .consume(builder -> builder.count = count)
                     .orElse()
                     .throwIt(() -> new IllegalArgumentException("The maximum number of polling attempts must be greater than 0. Provided value: %s".formatted(count)))
-                    .getAsType();
+                    .get();
         }
 
         /**
