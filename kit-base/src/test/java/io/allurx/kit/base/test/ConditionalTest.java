@@ -34,15 +34,16 @@ class ConditionalTest {
     @Test
     void testConditional() {
         var result
-                = Conditional.when(() -> false).run(() -> System.out.println("if"))
+                = when(() -> false).run(() -> System.out.println("if"))
                 .elseIf(() -> false).run(() -> System.out.println("else if"))
                 .elseIf(() -> false).throwIt(RuntimeException::new)
-                .elseIf(() -> true).set(() -> 1)
-                .elseIf(() -> false).set(() -> "2")
-                .elseIf(() -> true).set(() -> 3)
-                .elseIf(() -> false).set(() -> "4")
-                .orElse().set(() -> 5)
-                .get();
+                .elseIf(() -> true).map(o -> 1)
+                .elseIf(() -> false).map(o -> "2")
+                .elseIf(() -> true).map(o -> 3)
+                .elseIf(() -> false).map(o -> "4")
+                .elseIf(() -> false).map(o -> 5)
+                .orElse().map(o -> "6")
+                .<Integer>getAsType();
         Assertions.assertEquals(1, result);
     }
 
@@ -53,10 +54,10 @@ class ConditionalTest {
     void testConditionalWithInput() {
         var result = Conditional.of(6)
                 .when(i -> i <= 3).run(() -> System.out.println("if"))
-                .elseIf(i -> i > 3 && i <= 6).run(() -> System.out.println("else if")).map(i -> "result").peek(System.out::println)
+                .elseIf(i -> i > 3 && i <= 6).run(() -> System.out.println("else if")).map(i -> "else if")
                 .orElse().run(() -> System.out.println("else"))
                 .<String>getAsType();
-        Assertions.assertEquals("result", result);
+        Assertions.assertEquals("else if", result);
     }
 
 }

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.allurx.kit.base.jmh;
+package io.allurx.kit.base.benchmark;
 
 import io.allurx.kit.base.Conditional;
 import io.allurx.kit.base.constant.FunctionConstants;
@@ -45,14 +45,14 @@ import static io.allurx.kit.base.Conditional.when;
  *
  * @author allurx
  */
-@Fork(3)
+@Fork(1)
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
 @State(Scope.Thread)
 @Threads(Threads.MAX)
 @Warmup(iterations = 3, time = 8)
 @Measurement(iterations = 3, time = 8)
-public class ConditionalJmh {
+public class ConditionalBenchmark {
 
     /**
      * Native if-else construct for testing basic conditional logic performance.
@@ -82,9 +82,9 @@ public class ConditionalJmh {
     @Benchmark
     public void testConditional(Blackhole blackhole) {
         var result
-                = Conditional.when(FunctionConstants.FALSE_PREDICATE.test(null)).set(() -> "if")
-                .elseIf(() -> FunctionConstants.FALSE_PREDICATE.test(null)).set(() -> "else if")
-                .orElse().set(() -> "else")
+                = when(FunctionConstants.FALSE_PREDICATE.test(null)).map(o -> "if")
+                .elseIf(() -> FunctionConstants.FALSE_PREDICATE.test(null)).map(o -> "else if")
+                .orElse().map(o -> "else")
                 .get();
         blackhole.consume(result);
     }
