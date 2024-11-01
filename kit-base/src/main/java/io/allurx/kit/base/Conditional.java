@@ -18,6 +18,8 @@ package io.allurx.kit.base;
 
 import io.allurx.kit.base.function.MultiOutputSupplier;
 
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -90,7 +92,7 @@ public final class Conditional<T> {
      * Initiates a conditional flow with a specified boolean condition.
      *
      * @param condition the initial condition to evaluate
-     * @return an {@link Conditional.IfBranch} instance for further branching
+     * @return an {@link IfBranch} instance for further branching
      */
     public IfBranch<T> when(boolean condition) {
         return new IfBranch<>(condition, input);
@@ -100,7 +102,7 @@ public final class Conditional<T> {
      * Initiates a conditional flow using a {@link BooleanSupplier} to evaluate the condition.
      *
      * @param booleanSupplier the supplier that provides the boolean condition
-     * @return an {@link Conditional.IfBranch} instance for further branching
+     * @return an {@link IfBranch} instance for further branching
      */
     public IfBranch<T> when(BooleanSupplier booleanSupplier) {
         return when(booleanSupplier.getAsBoolean());
@@ -113,7 +115,7 @@ public final class Conditional<T> {
      * @return an {@link IfBranch} instance for further branching
      */
     public IfBranch<T> when(Predicate<? super T> predicate) {
-        return new IfBranch<>(predicate.test(input), input);
+        return when(predicate.test(input));
     }
 
     /**
@@ -130,6 +132,11 @@ public final class Conditional<T> {
         @Override
         public <O> IfBranch<O> map(Function<? super R, ? extends O> function) {
             return branchHit ? new IfBranch<>(true, function.apply(output)) : uncheckedCast(this);
+        }
+
+        @Override
+        public <O> IfBranch<O> map(BiFunction<? super T, ? super R, ? extends O> function) {
+            return branchHit ? new IfBranch<>(true, function.apply(input, output)) : uncheckedCast(this);
         }
 
     }
@@ -149,6 +156,11 @@ public final class Conditional<T> {
         public <O> ElseIfBranch<O> map(Function<? super R, ? extends O> function) {
             return branchHit ? new ElseIfBranch<>(true, function.apply(output)) : uncheckedCast(this);
         }
+
+        @Override
+        public <O> ElseIfBranch<O> map(BiFunction<? super T, ? super R, ? extends O> function) {
+            return branchHit ? new ElseIfBranch<>(true, function.apply(input, output)) : uncheckedCast(this);
+        }
     }
 
     /**
@@ -165,6 +177,11 @@ public final class Conditional<T> {
         @Override
         public <O> ElseBranch<O> map(Function<? super R, ? extends O> function) {
             return branchHit ? new ElseBranch<>(true, function.apply(output)) : uncheckedCast(this);
+        }
+
+        @Override
+        public <O> ElseBranch<O> map(BiFunction<? super T, ? super R, ? extends O> function) {
+            return branchHit ? new ElseBranch<>(true, function.apply(input, output)) : uncheckedCast(this);
         }
     }
 
@@ -265,6 +282,17 @@ public final class Conditional<T> {
         }
 
         /**
+         * Processes the branch's input and output using the given BiConsumer if the condition is satisfied.
+         *
+         * @param consumer the BiConsumer that processes the branch's input and output
+         * @return the current branch instance
+         */
+        public B consume(BiConsumer<? super T, ? super R> consumer) {
+            if (branchHit) consumer.accept(input, output);
+            return self();
+        }
+
+        /**
          * Returns the current branch instance itself, optimizing for type inference and performance.
          *
          * @return the current instance with inferred type
@@ -272,6 +300,16 @@ public final class Conditional<T> {
         B self() {
             return uncheckedCast(this);
         }
+
+        /**
+         * Maps the branch's input and output to a new type if the condition is satisfied.
+         *
+         * @param function the mapping function
+         * @param <O>      the type of the mapped output
+         * @return a branch instance with the new output type
+         */
+        public abstract <O> Branch<O> map(BiFunction<? super T, ? super R, ? extends O> function);
+
     }
 
     /**

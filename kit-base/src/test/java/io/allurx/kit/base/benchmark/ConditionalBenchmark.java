@@ -54,9 +54,9 @@ public class ConditionalBenchmark {
 
     /**
      * Native if-else construct for testing basic conditional logic performance.
-     * This method simulates a simple conditional flow with multiple branches using standard Java syntax.
+     * Simulates a simple conditional flow with multiple branches.
      *
-     * @param blackhole Blackhole to consume the result and prevent JIT optimizations
+     * @param blackhole Consumes the result to prevent JIT optimizations
      */
     @Benchmark
     public void testNativeConditional(Blackhole blackhole) {
@@ -72,10 +72,10 @@ public class ConditionalBenchmark {
     }
 
     /**
-     * Test using  {@link Conditional} to handle the same conditional logic.
-     * This method demonstrates how the Conditional API is used to replace standard if-else logic.
+     * Test using {@link Conditional} to handle the same conditional logic.
+     * Demonstrates how the Conditional API replaces standard if-else logic.
      *
-     * @param blackhole Blackhole to consume the result and prevent JIT optimizations
+     * @param blackhole Consumes the result to prevent JIT optimizations
      */
     @Benchmark
     public void testConditional(Blackhole blackhole) {
