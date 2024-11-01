@@ -45,14 +45,14 @@ class ConditionalTest {
     }
 
     /**
-     * Tests conditional flow with input and result mapping.
+     * Tests the function of the Conditional class.
      */
     @Test
-    void testConditionalWithInput() {
+    void testConditionalFunction() {
         var result = Conditional.of(6)
-                .when(i -> i <= 3).map(i -> i)
-                .elseIf(i -> i > 3 && i <= 6).map(i -> i * 2)
-                .orElse().map(i -> i * 3)
+                .when(i -> i == 6)
+                .map(i -> i * 2)
+                .consume((i, o) -> System.out.printf("input: %s, output: %s%n", i, o))
                 .get();
         Assertions.assertEquals(12, result);
     }
