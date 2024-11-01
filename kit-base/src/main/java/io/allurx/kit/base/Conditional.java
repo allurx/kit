@@ -115,7 +115,7 @@ public final class Conditional<T> {
      * @return an {@link IfBranch} instance for further branching
      */
     public IfBranch<T> when(Predicate<? super T> predicate) {
-        return new IfBranch<>(predicate.test(input), input);
+        return when(predicate.test(input));
     }
 
     /**
