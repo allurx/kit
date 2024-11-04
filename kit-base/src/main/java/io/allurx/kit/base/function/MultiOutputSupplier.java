@@ -49,11 +49,11 @@ public interface MultiOutputSupplier<T> extends Supplier<T> {
     }
 
     /**
-     * Returns the result as a {@link Stream}.
+     * Returns the result wrapped in an {@link Stream}.
      * <p>
      * If the result is null, an empty stream is returned.
      *
-     * @return a {@link Stream} containing the result, or an empty stream if the result is null
+     * @return the result wrapped in an {@link Stream}.
      */
     default Stream<T> getAsStream() {
         return get() == null ? Stream.empty() : Stream.of(get());
