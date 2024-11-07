@@ -52,7 +52,7 @@ class ConditionalTest {
         var result = Conditional.of(6)
                 .when(i -> i == 6)
                 .map(i -> i * 2)
-                .consume((i, o) -> System.out.printf("input: %s, output: %s%n", i, o))
+                .consume(i -> System.out.printf("result: %s%n", i))
                 .get();
         Assertions.assertEquals(12, result);
     }

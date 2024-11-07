@@ -18,8 +18,6 @@ package io.allurx.kit.base;
 
 import io.allurx.kit.base.function.MultiOutputSupplier;
 
-import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -80,10 +78,10 @@ public final class Conditional<I> {
      * Creates a new {@code Conditional} instance with the specified input.
      *
      * @param input the input for the conditional flow
-     * @param <T>   the type of input value
+     * @param <I>   the type of input value
      * @return a new {@code Conditional} instance
      */
-    public static <T> Conditional<T> of(T input) {
+    public static <I> Conditional<I> of(I input) {
         return new Conditional<>(input);
     }
 
@@ -129,14 +127,10 @@ public final class Conditional<I> {
         }
 
         @Override
-        public <T> IfBranch<T> map(Function<? super O, ? extends T> function) {
+        public <U> IfBranch<U> map(Function<? super O, ? extends U> function) {
             return branchHit ? new IfBranch<>(true, function.apply(output)) : uncheckedCast(this);
         }
 
-        @Override
-        public <T> IfBranch<T> map(BiFunction<? super I, ? super O, ? extends T> function) {
-            return branchHit ? new IfBranch<>(true, function.apply(input, output)) : uncheckedCast(this);
-        }
     }
 
     /**
@@ -151,14 +145,10 @@ public final class Conditional<I> {
         }
 
         @Override
-        public <T> ElseIfBranch<T> map(Function<? super O, ? extends T> function) {
+        public <U> ElseIfBranch<U> map(Function<? super O, ? extends U> function) {
             return branchHit ? new ElseIfBranch<>(true, function.apply(output)) : uncheckedCast(this);
         }
 
-        @Override
-        public <T> ElseIfBranch<T> map(BiFunction<? super I, ? super O, ? extends T> function) {
-            return branchHit ? new ElseIfBranch<>(true, function.apply(input, output)) : uncheckedCast(this);
-        }
     }
 
     /**
@@ -173,13 +163,8 @@ public final class Conditional<I> {
         }
 
         @Override
-        public <T> ElseBranch<T> map(Function<? super O, ? extends T> function) {
+        public <U> ElseBranch<U> map(Function<? super O, ? extends U> function) {
             return branchHit ? new ElseBranch<>(true, function.apply(output)) : uncheckedCast(this);
-        }
-
-        @Override
-        public <T> ElseBranch<T> map(BiFunction<? super I, ? super O, ? extends T> function) {
-            return branchHit ? new ElseBranch<>(true, function.apply(input, output)) : uncheckedCast(this);
         }
     }
 
@@ -227,8 +212,11 @@ public final class Conditional<I> {
 
     /**
      * Base class for all conditional branches (if, else-if, else).
+     *
+     * @param <O> the type of the output produced by this branch
+     * @param <B> the type of this branch
      */
-    private abstract class BaseBranch<O, B extends BaseBranch<O, B>> implements Branch<I, O> {
+    private abstract class BaseBranch<O, B extends BaseBranch<O, B>> implements Branch<O> {
 
         /**
          * The output produced by this branch.
@@ -255,12 +243,6 @@ public final class Conditional<I> {
         @Override
         public B consume(Consumer<? super O> consumer) {
             if (branchHit) consumer.accept(output);
-            return self();
-        }
-
-        @Override
-        public B consume(BiConsumer<? super I, ? super O> consumer) {
-            if (branchHit) consumer.accept(input, output);
             return self();
         }
 
@@ -295,10 +277,9 @@ public final class Conditional<I> {
     /**
      * Defines operations that can be performed on a branch.
      *
-     * @param <I> the input type
-     * @param <O> the output type
+     * @param <O> the type of the output
      */
-    private interface Branch<I, O> extends MultiOutputSupplier<O> {
+    private interface Branch<O> extends MultiOutputSupplier<O> {
 
         /**
          * Executes the specified action if the condition is met.
@@ -306,7 +287,7 @@ public final class Conditional<I> {
          * @param runnable the action to execute
          * @return this branch for chaining
          */
-        Branch<I, O> run(Runnable runnable);
+        Branch<O> run(Runnable runnable);
 
         /**
          * Processes the output if the condition is met.
@@ -314,33 +295,16 @@ public final class Conditional<I> {
          * @param consumer the output processor
          * @return this branch for chaining
          */
-        Branch<I, O> consume(Consumer<? super O> consumer);
-
-        /**
-         * Processes the input and output if the condition is met.
-         *
-         * @param consumer the processor for both input and output
-         * @return this branch for chaining
-         */
-        Branch<I, O> consume(BiConsumer<? super I, ? super O> consumer);
+        Branch<O> consume(Consumer<? super O> consumer);
 
         /**
          * Maps the output to a new value if the condition is met.
          *
          * @param function the mapping function
-         * @param <T>      the new output type
+         * @param <U>      the new output type
          * @return a new branch with the mapped output
          */
-        <T> Branch<I, T> map(Function<? super O, ? extends T> function);
-
-        /**
-         * Maps the output using both input and output if the condition is met.
-         *
-         * @param function the mapping function
-         * @param <T>      the new output type
-         * @return a new branch with the mapped output
-         */
-        <T> Branch<I, T> map(BiFunction<? super I, ? super O, ? extends T> function);
+        <U> Branch<U> map(Function<? super O, ? extends U> function);
 
         /**
          * Throws an exception if the condition is met.
@@ -350,7 +314,7 @@ public final class Conditional<I> {
          * @return this branch for chaining
          * @throws X the exception thrown if the condition is met
          */
-        <X extends Throwable> Branch<I, O> throwIt(Supplier<? extends X> supplier) throws X;
+        <X extends Throwable> Branch<O> throwIt(Supplier<? extends X> supplier) throws X;
     }
 
 }
