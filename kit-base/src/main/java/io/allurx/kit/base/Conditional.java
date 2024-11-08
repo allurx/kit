@@ -57,6 +57,7 @@ import static io.allurx.kit.base.reflection.TypeConverter.uncheckedCast;
  * if using in a concurrent environment.
  *
  * @param <I> the type of the input value
+ * @author allurx
  */
 public final class Conditional<I> {
 
