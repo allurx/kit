@@ -31,10 +31,11 @@ public class TelegramTest {
     void testTelegram() {
         try (var chrome = Chrome.builder()
                 .mode(Mode.ATTACH)
+                .chromePath("C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe")
                 .addArgs("--user-data-dir=D:\\chrome-user-data\\1-8502950634")
                 .build()) {
             var webDriver = chrome.webDriver();
-            webDriver.get("https://web.telegram.org/a/");
+            webDriver.get("https://example.com");
             LockSupport.parkNanos(TimeUnit.SECONDS.toNanos(3));
         }
     }

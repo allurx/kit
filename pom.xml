@@ -20,7 +20,7 @@
 
     <properties>
         <gson.version>2.11.0</gson.version>
-        <logback.version>1.5.7</logback.version>
+        <logback.version>1.5.18</logback.version>
         <jackson-bom.version>2.17.2</jackson-bom.version>
         <junit-jupiter.version>5.11.0</junit-jupiter.version>
         <jmh-core.version>1.37</jmh-core.version>

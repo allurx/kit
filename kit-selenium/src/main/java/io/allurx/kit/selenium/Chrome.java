@@ -77,6 +77,7 @@ public final class Chrome implements AutoCloseable {
     }
 
     private Mode mode;
+    private String chromePath;
     private WebDriver webDriver;
     private Process process;
 
@@ -134,7 +135,7 @@ public final class Chrome implements AutoCloseable {
          * Adds Chrome startup arguments.
          *
          * @param args Chrome startup arguments
-         * @return this {@link ChromeBuilder} instance
+         * @return the current ChromeBuilder instance for chaining
          */
         public ChromeBuilder addArgs(String... args) {
             chrome.defaultArgs.addAll(Arrays.asList(args));
@@ -145,7 +146,7 @@ public final class Chrome implements AutoCloseable {
          * Removes Chrome startup arguments.
          *
          * @param args Chrome startup arguments
-         * @return this {@link ChromeBuilder} instance
+         * @return the current ChromeBuilder instance for chaining
          */
         public ChromeBuilder removeArgs(String... args) {
             chrome.defaultArgs.removeAll(Arrays.asList(args));
@@ -156,10 +157,21 @@ public final class Chrome implements AutoCloseable {
          * Sets the communication mode between {@link WebDriver} and the browser.
          *
          * @param mode the communication mode, one of {@link Mode}
-         * @return this {@link ChromeBuilder} instance
+         * @return the current ChromeBuilder instance for chaining
          */
         public ChromeBuilder mode(Mode mode) {
             chrome.mode = mode;
+            return this;
+        }
+
+        /**
+         * Sets the path to the Chrome executable.
+         *
+         * @param chromePath the absolute path to the Chrome binary
+         * @return the current ChromeBuilder instance for chaining
+         */
+        public ChromeBuilder chromePath(String chromePath) {
+            chrome.chromePath = chromePath;
             return this;
         }
 
@@ -221,12 +233,13 @@ public final class Chrome implements AutoCloseable {
         public Chrome build() {
             try {
                 Optional.ofNullable(chrome.mode).orElseThrow(() -> new IllegalStateException("Chrome mode not set"));
+                Optional.ofNullable(chrome.chromePath).orElseThrow(() -> new IllegalStateException("Chrome Path not set"));
                 switch (chrome.mode) {
                     case ATTACH -> {
 
                         // Start the Chrome process
                         int port = findAvailablePort();
-                        chrome.defaultArgs.addFirst("chrome");
+                        chrome.defaultArgs.addFirst(chrome.chromePath);
                         chrome.defaultArgs.add("--remote-debugging-port=" + port);
 
                         // First, start Chrome so that WebDriver can later establish a connection with it.
@@ -249,6 +262,7 @@ public final class Chrome implements AutoCloseable {
                         if (checkChromeStartupStatus(port)) {
                             // Attach WebDriver to the running Chrome process
                             var options = new ChromeOptions();
+                            options.setBinary(chrome.chromePath);
                             options.setExperimentalOption("debuggerAddress", "127.0.0.1:" + port);
                             chrome.webDriver = new ChromeDriver(options);
                             chrome.process = process;
@@ -264,7 +278,9 @@ public final class Chrome implements AutoCloseable {
                         }
                     }
                     case HOSTED -> {
-                        var options = new ChromeOptions().addArguments(chrome.defaultArgs);
+                        var options = new ChromeOptions()
+                                .setBinary(chrome.chromePath)
+                                .addArguments(chrome.defaultArgs);
                         chrome.webDriver = new ChromeDriver(options);
                     }
                 }
