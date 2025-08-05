@@ -35,7 +35,7 @@ public class TelegramTest {
                 .addArgs("--user-data-dir=D:\\chrome-user-data\\1-8502950634")
                 .build()) {
             var webDriver = chrome.webDriver();
-            webDriver.get("https://example.com");
+            webDriver.get("https://baidu.com");
             LockSupport.parkNanos(TimeUnit.SECONDS.toNanos(3));
         }
     }
