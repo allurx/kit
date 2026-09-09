@@ -16,7 +16,6 @@
 package io.allurx.kit.base.concurrency;
 
 import java.time.Duration;
-import java.util.concurrent.locks.LockSupport;
 
 /**
  * An interface for controlling thread sleep behavior.
@@ -28,10 +27,17 @@ import java.util.concurrent.locks.LockSupport;
 public interface Sleeper {
 
     /**
-     * The default {@link Sleeper} implementation.
-     * <p>This implementation uses {@link LockSupport#parkNanos(long)} to pause the thread for the specified duration.</p>
+     * Pauses using {@link Thread#sleep(Duration)} to avoid returning early due to park permits or spurious returns from parking.
+     * Interruption ends the wait and restores the interrupt flag for the caller.
+     * Timing is subject to system timer precision and thread scheduling.
      */
-    Sleeper DEFAULT = duration -> LockSupport.parkNanos(duration.toNanos());
+    Sleeper DEFAULT = duration -> {
+        try {
+            Thread.sleep(duration);
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
+        }
+    };
 
     /**
      * Causes the current thread to sleep for the specified duration.
