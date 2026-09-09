@@ -92,8 +92,8 @@ public class IntervalBasedPoller extends BasePoller {
 
             cnt++;
 
-            // Break if predicate is satisfied after executing function
-            if (predicate.test(result = execute(supplier.get(), function))) break;
+            // Check the termination condition after each attempt, including an ignored failure.
+            if (predicate.test(result = execute(supplier, function))) break;
 
             // Do not sleep after cancellation or when the next interval exceeds the deadline.
             if (Thread.currentThread().isInterrupted() || clock.instant().plus(interval).isAfter(endInstant)) break;

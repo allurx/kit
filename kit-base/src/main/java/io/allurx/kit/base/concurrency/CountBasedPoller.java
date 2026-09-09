@@ -62,7 +62,7 @@ public class CountBasedPoller extends BasePoller {
         B result = null;
         for (int i = 0; i < count; i++) {
             cnt++;
-            if (predicate.test(result = execute(supplier.get(), function))) break;
+            if (predicate.test(result = execute(supplier, function))) break;
         }
         return new PollResult<>(cnt, result);
     }

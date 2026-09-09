@@ -22,12 +22,13 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 import static io.allurx.kit.base.reflection.TypeConverter.uncheckedCast;
 
 /**
  * Abstract base class for creating a Poller with customizable exception handling and logging.
- * Provides the framework for executing a polling function and handling any ignored exceptions.
+ * Handles configured exceptions from input retrieval and conversion during each polling attempt.
  *
  * @author allurx
  */
@@ -39,7 +40,8 @@ public abstract class BasePoller implements Poller {
     protected final System.Logger logger;
 
     /**
-     * List of exceptions to be ignored during polling. Exceptions in this list will not terminate polling.
+     * Exception types ignored when retrieving or converting polling input.
+     * Exceptions from the termination predicate are not ignored.
      */
     protected final List<Class<? extends Throwable>> ignoredExceptions;
 
@@ -69,17 +71,20 @@ public abstract class BasePoller implements Poller {
     }
 
     /**
-     * Executes the provided function and handles any ignored exceptions.
+     * Retrieves input and applies the function, handling configured exceptions from either stage.
+     * An ignored failure produces null, which the caller still passes to the termination predicate.
      *
-     * @param input    the input provided to the function
+     * @param supplier the supplier that retrieves input for this attempt
      * @param function the function to be executed
      * @param <A>      the input type of the function
      * @param <B>      the output type of the function
      * @return the result of the function execution, or null if an ignored exception was thrown
+     * @throws NullPointerException if the supplier is null, regardless of the ignored exception types
      */
-    protected <A, B> B execute(A input, Function<? super A, ? extends B> function) {
+    protected <A, B> B execute(Supplier<? extends A> supplier, Function<? super A, ? extends B> function) {
+        Objects.requireNonNull(supplier, "The Supplier cannot be null");
         try {
-            return function.apply(input);
+            return function.apply(supplier.get());
         } catch (Throwable t) {
             if (ignoredExceptions.stream().noneMatch(ignoredException -> ignoredException.isInstance(t))) throw t;
             logger.log(System.Logger.Level.WARNING, "Poller is ignoring the exception: {0}", t.getClass().getName());
@@ -112,7 +117,9 @@ public abstract class BasePoller implements Poller {
         protected List<Class<? extends Throwable>> ignoredExceptions;
 
         /**
-         * Sets the list of ignored exceptions. Poller will ignore all exceptions in this list during execution.
+         * Sets exception types to ignore when retrieving or converting polling input.
+         * An ignored failure produces null for the termination predicate, which must handle that value.
+         * Exceptions thrown by the predicate are always propagated.
          *
          * @param ignoredExceptions the array of exception classes to ignore
          * @return the builder instance for chaining
@@ -124,7 +131,9 @@ public abstract class BasePoller implements Poller {
         }
 
         /**
-         * Sets the list of ignored exceptions. Poller will ignore all exceptions in this list during execution.
+         * Sets exception types to ignore when retrieving or converting polling input.
+         * An ignored failure produces null for the termination predicate, which must handle that value.
+         * Exceptions thrown by the predicate are always propagated.
          *
          * @param ignoredExceptions the list of exception classes to ignore
          * @return the builder instance for chaining
