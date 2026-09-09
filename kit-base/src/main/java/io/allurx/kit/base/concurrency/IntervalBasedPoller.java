@@ -25,9 +25,11 @@ import java.util.function.Supplier;
 
 /**
  * A Poller implementation that limits polling attempts based on a specified time duration and interval.
- * The first attempt runs immediately, including when the duration is zero.
- * Polling stops when the termination condition is satisfied or no time remains for another attempt.
- * The deadline is checked again after sleeping; callbacks already in progress are not interrupted.
+ * Unless the current thread is already interrupted, the first attempt runs immediately, even with zero duration.
+ * Polling stops when the termination condition is satisfied, the thread is interrupted, or no time remains.
+ * Interruption preserves the interrupt flag and returns the last result and actual attempt count.
+ * If interrupted before the first attempt, the result is null and the count is zero.
+ * The deadline is checked again after sleeping; the poller does not interrupt callbacks already in progress.
  * Supports custom sleeping behavior between polling attempts.
  * <p>Example usage of {@code IntervalBasedPoller}.</p>
  *
@@ -83,17 +85,18 @@ public class IntervalBasedPoller extends BasePoller {
                                      Predicate<? super B> predicate) {
         check(function, predicate);
         int cnt = 0;
-        B result;
+        B result = null;
         Instant endInstant = clock.instant().plus(duration);
         do {
+            if (Thread.currentThread().isInterrupted()) break;
 
             cnt++;
 
             // Break if predicate is satisfied after executing function
             if (predicate.test(result = execute(supplier.get(), function))) break;
 
-            // Break if current time plus interval is after endInstant
-            if (clock.instant().plus(interval).isAfter(endInstant)) break;
+            // Do not sleep after cancellation or when the next interval exceeds the deadline.
+            if (Thread.currentThread().isInterrupted() || clock.instant().plus(interval).isAfter(endInstant)) break;
 
             // Sleep may resume late, so recheck the deadline before another attempt.
             sleeper.sleep(interval);
