@@ -25,6 +25,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static io.allurx.kit.json.JsonOperator.GSON_OPERATOR;
 import static io.allurx.kit.json.JsonOperator.JACKSON_OPERATOR;
@@ -108,5 +110,35 @@ public class JsonTest {
     void testGsonCompare() {
         var pretty = GSON_OPERATOR.with(gson -> gson.newBuilder().setPrettyPrinting().create());
         assertTrue(GSON_OPERATOR.compare(GSON_OPERATOR.toJsonString(PERSONS), pretty.toJsonString(PERSONS)));
+    }
+
+    /**
+     * Distinct numeric values remain unequal, including inside nested objects and arrays.
+     * Numeric comparison rejects values outside the supported BigDecimal range.
+     */
+    @Test
+    void testGsonComparePreservesNumericPrecision() {
+        assertFalse(GSON_OPERATOR.compare("9007199254740992", "9007199254740993"));
+        assertFalse(GSON_OPERATOR.compare(
+                "{\"items\":[{\"id\":9007199254740992}]}",
+                "{\"items\":[{\"id\":9007199254740993}]}"));
+        assertFalse(GSON_OPERATOR.compare("0.1000000000000000001", "0.1000000000000000002"));
+        assertFalse(GSON_OPERATOR.compare("1e400", "2e400"));
+        assertThrows(NumberFormatException.class, () -> GSON_OPERATOR.compare("1e2147483649", "2e2147483649"));
+    }
+
+    /**
+     * Equivalent number formats and object field order do not change equality; array order and value types do.
+     */
+    @Test
+    void testGsonCompareRetainsNumericAndStructuralEquality() {
+        assertTrue(GSON_OPERATOR.compare("1", "1.0", "1e0"));
+        assertTrue(GSON_OPERATOR.compare(
+                "{\"values\":[9007199254740993,1.0,true,null,\"x\"],\"zero\":0}",
+                "{\"zero\":-0.0,\"values\":[9007199254740993.0,1,true,null,\"x\"]}"));
+        assertFalse(GSON_OPERATOR.compare("[1,2]", "[2,1]"));
+        assertFalse(GSON_OPERATOR.compare("[1]", "[1,2]"));
+        assertFalse(GSON_OPERATOR.compare("{\"a\":null}", "{\"b\":null}"));
+        assertFalse(GSON_OPERATOR.compare("1", "\"1\""));
     }
 }
