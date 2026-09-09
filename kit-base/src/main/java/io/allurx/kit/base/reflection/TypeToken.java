@@ -21,8 +21,6 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.lang.reflect.WildcardType;
-import java.util.Arrays;
-import java.util.stream.Stream;
 
 /**
  * Utility class for capturing and storing generic types.
@@ -111,7 +109,8 @@ public abstract class TypeToken<T> {
      * <li>If {@link T} is a {@link ParameterizedType}, e.g., {@code List<String>}, it returns {@code List.class}.</li>
      * <li>If {@link T} is a {@link TypeVariable}, e.g., {@code T}, return its first upper bound.</li>
      * <li>If {@link T} is a {@link GenericArrayType}, e.g., {@code List<String>[]}, it returns {@code List[].class}.</li>
-     * <li>If {@link T} is a {@link WildcardType}, e.g., {@code ?}, return its upper or lower bound.</li>
+     * <li>If {@link T} is a {@link WildcardType}, return the raw class of its first upper bound;
+     * the implicit upper bound is {@code Object} when no upper bound is explicitly declared.</li>
      * </ul>
      *
      * <p>This method helps avoid <b>unchecked</b> warnings from the compiler.</p>
@@ -140,12 +139,7 @@ public abstract class TypeToken<T> {
             case TypeVariable<?> typeVariable -> of(typeVariable.getBounds()[0]).getRawClass();
             case GenericArrayType genericArrayType ->
                     Array.newInstance(of(genericArrayType.getGenericComponentType()).getRawClass(), 0).getClass();
-            case WildcardType wildcardType -> Stream.of(wildcardType.getLowerBounds(), wildcardType.getUpperBounds())
-                    .flatMap(Arrays::stream)
-                    .findFirst()
-                    .map(TypeToken::of)
-                    .map(TypeToken::getRawClass)
-                    .orElseThrow(() -> new IllegalStateException("WildcardType must declare at least one upper or lower bound as specified by the Java Language Specification: %s".formatted(capturedType)));
+            case WildcardType wildcardType -> of(wildcardType.getUpperBounds()[0]).getRawClass();
             default -> throw new IllegalArgumentException("Unexpected type: %s".formatted(capturedType));
         };
         return TypeConverter.uncheckedCast(clazz);
