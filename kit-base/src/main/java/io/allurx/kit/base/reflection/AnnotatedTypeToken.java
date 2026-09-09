@@ -74,13 +74,14 @@ public abstract class AnnotatedTypeToken<T> extends TypeToken<T> {
     }
 
     /**
-     * Creates an {@link AnnotatedTypeToken} for the specified annotated type.
+     * Creates a token from an annotated type known only at runtime.
+     * An {@link AnnotatedType} does not bind a compile-time type parameter, so the result uses a wildcard.
+     * Use an anonymous subclass to capture both a static generic type and its annotations.
      *
      * @param annotatedType the annotated type to capture
-     * @param <T>           the type to capture
-     * @return a new {@link AnnotatedTypeToken} instance
+     * @return a token preserving the supplied type and annotations without claiming a specific compile-time type
      */
-    public static <T> AnnotatedTypeToken<T> of(AnnotatedType annotatedType) {
+    public static AnnotatedTypeToken<?> of(AnnotatedType annotatedType) {
         return new AnnotatedTypeToken<>(annotatedType) {
         };
     }

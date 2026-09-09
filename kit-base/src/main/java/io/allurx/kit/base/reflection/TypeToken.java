@@ -17,7 +17,6 @@ package io.allurx.kit.base.reflection;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.GenericArrayType;
-import java.lang.reflect.GenericDeclaration;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
@@ -73,13 +72,25 @@ public abstract class TypeToken<T> {
     }
 
     /**
-     * Instantiates a {@link TypeToken} from a known {@link Type}.
+     * Creates a token whose compile-time type is determined by the supplied class.
      *
-     * @param type The known {@link Type}, usually provided by {@link GenericDeclaration}.
-     * @param <T>  Type inferred by the compiler.
-     * @return A {@link TypeToken} instance.
+     * @param type the class represented by the token
+     * @param <T> the type represented by the class
+     * @return a token bound to the supplied class's type
      */
-    public static <T> TypeToken<T> of(Type type) {
+    public static <T> TypeToken<T> of(Class<T> type) {
+        return new TypeToken<>(type) {
+        };
+    }
+
+    /**
+     * Creates a token from a type known only at runtime.
+     * A reflective {@link Type} does not bind a compile-time type parameter, so the result uses a wildcard.
+     *
+     * @param type the runtime type to capture
+     * @return a token preserving the supplied type without claiming a specific compile-time type
+     */
+    public static TypeToken<?> of(Type type) {
         return new TypeToken<>(type) {
         };
     }
