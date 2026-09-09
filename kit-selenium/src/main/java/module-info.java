@@ -21,7 +21,7 @@
 module io.allurx.kit.selenium {
     exports io.allurx.kit.selenium;
     requires org.slf4j;
+    requires transitive org.seleniumhq.selenium.api;
     requires org.seleniumhq.selenium.chrome_driver;
-    requires dev.failsafe.core;
     requires io.allurx.kit.base;
 }

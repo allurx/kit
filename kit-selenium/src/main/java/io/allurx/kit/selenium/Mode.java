@@ -23,8 +23,8 @@ import org.openqa.selenium.WebDriver;
  * This enum defines two modes of interaction:
  * </p>
  * <ul>
- *     <li>{@link #ATTACH} - Communicates with an already running Chrome instance using the Chrome DevTools Protocol (CDP).</li>
- *     <li>{@link #HOSTED} - Communicates with Chrome using the WebDriver protocol (JSON Wire Protocol or W3C WebDriver). In this mode, the lifecycle of Chrome is fully managed by {@link WebDriver}.</li>
+ *     <li>{@link #ATTACH} - Attaches ChromeDriver to a Chrome debugging address and controls that browser through W3C WebDriver.</li>
+ *     <li>{@link #HOSTED} - Uses W3C WebDriver with Chrome's lifecycle managed by the driver.</li>
  * </ul>
  *
  * @author allurx
@@ -32,12 +32,12 @@ import org.openqa.selenium.WebDriver;
 public enum Mode {
 
     /**
-     * Communicates with an already running Chrome instance using the Chrome DevTools Protocol (CDP).
+     * Attaches ChromeDriver to a Chrome debugging address and controls that browser through W3C WebDriver.
      */
     ATTACH,
 
     /**
-     * Communicates with Chrome using the WebDriver protocol (JSON Wire Protocol or W3C WebDriver).
+     * Communicates with Chrome using W3C WebDriver.
      * In this mode, the lifecycle of Chrome is entirely controlled by {@link WebDriver}.
      */
     HOSTED
