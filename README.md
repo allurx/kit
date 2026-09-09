@@ -1,9 +1,11 @@
 # Kit
 
-Kit, developed with **JDK 21**, is a lightweight Java utility library designed to enhance productivity by streamlining development,
+Kit, developed with **JDK 25**, is a lightweight Java utility library designed to enhance productivity by streamlining development,
 simplifying common tasks, improving code readability, and fully leveraging modern Java features with an easy-to-use API for diverse development needs.
 
 ## Installation
+
+Kit requires Java 25 or later. Building from source also requires Maven to run on JDK 25 or later.
 
 To use Kit in your Maven project, add the following dependency to your `pom.xml`:
 
