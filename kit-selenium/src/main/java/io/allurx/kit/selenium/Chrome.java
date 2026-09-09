@@ -23,12 +23,10 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.ServerSocket;
-import java.net.Socket;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.LockSupport;
 import java.util.stream.Collectors;
 
 /**
@@ -211,21 +209,15 @@ public final class Chrome implements AutoCloseable {
         }
 
         /**
-         * Checks whether Chrome has started successfully.
-         *
-         * @param port the port to check for remote debugging
-         * @return {@code true} if Chrome has started successfully, {@code false} otherwise
-         */
-        private boolean checkChromeStartupStatus(int port) {
-            try (var ignored = new Socket("127.0.0.1", port)) {
-                return true;
-            } catch (Exception e) {
-                return false;
-            }
-        }
-
-        /**
          * Constructs and returns a {@link Chrome} instance based on the builder configuration.
+         * <p>
+         * In {@link Mode#ATTACH} mode, waits up to three seconds for the debugging port to accept
+         * a connection before creating the WebDriver session. Output is drained in the background
+         * and a bounded tail is included in startup failures. If the process exits, the port does
+         * not become ready, or startup is interrupted, the process is terminated and a
+         * {@link BrowserStartupFailureException} is preserved as the cause of the construction
+         * exception. Interruption also preserves the calling thread's interrupt flag.
+         * </p>
          *
          * @return a new {@link Chrome} instance
          * @throws BrowserException if Chrome fails to start or an error occurs during construction
@@ -253,29 +245,15 @@ public final class Chrome implements AutoCloseable {
                         // Summary:
                         // At any given time, there will be only one Chrome process with the same --user-data-dir or
                         // --profile-directory due to the design of Chrome itself.
-                        var process = startProcess(new ProcessBuilder(chrome.defaultArgs));
+                        var process = startProcess(new ProcessBuilder(chrome.defaultArgs).redirectErrorStream(true));
+                        ChromeStartup.await(process, port, Duration.ofSeconds(3));
 
-                        // Wait for Chrome to start
-                        LockSupport.parkNanos(TimeUnit.SECONDS.toNanos(3));
-
-                        // Check if Chrome started successfully
-                        if (checkChromeStartupStatus(port)) {
-                            // Attach WebDriver to the running Chrome process
-                            var options = new ChromeOptions();
-                            options.setBinary(chrome.chromePath);
-                            options.setExperimentalOption("debuggerAddress", "127.0.0.1:" + port);
-                            chrome.webDriver = new ChromeDriver(options);
-                            chrome.process = process;
-                        } else {
-                            var errorMessage = new StringBuilder();
-                            try (var reader = process.errorReader()) {
-                                String line;
-                                while ((line = reader.readLine()) != null) {
-                                    errorMessage.append(line).append(System.lineSeparator());
-                                }
-                            }
-                            throw new BrowserStartupFailureException("Chrome startup failed: " + errorMessage);
-                        }
+                        // Attach WebDriver to the running Chrome process
+                        var options = new ChromeOptions();
+                        options.setBinary(chrome.chromePath);
+                        options.setExperimentalOption("debuggerAddress", "127.0.0.1:" + port);
+                        chrome.webDriver = new ChromeDriver(options);
+                        chrome.process = process;
                     }
                     case HOSTED -> {
                         var options = new ChromeOptions()
