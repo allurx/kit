@@ -142,17 +142,17 @@ final class ChromeStartup {
     }
 
     /**
-     * Requests termination of the failed process and closes its output pipe asynchronously.
+     * Requests termination after startup or WebDriver session construction fails and closes the output pipe asynchronously.
      * <p>
      * Output closure is kept off the startup thread because descendants may still hold the pipe.
      * Process termination errors are attached to the original failure instead of replacing it;
      * asynchronous output closure errors are logged.
      * </p>
      *
-     * @param process the process whose startup failed
-     * @param failure the original startup failure to receive suppressed termination errors
+     * @param process the process created by the failed construction attempt
+     * @param failure the original construction failure to receive suppressed termination errors
      */
-    private static void terminate(Process process, BrowserStartupFailureException failure) {
+    static void terminate(Process process, Throwable failure) {
         try {
             process.destroyForcibly();
         } catch (RuntimeException e) {

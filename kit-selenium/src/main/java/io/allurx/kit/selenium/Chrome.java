@@ -217,6 +217,8 @@ public final class Chrome implements AutoCloseable {
          * not become ready, or startup is interrupted, the process is terminated and a
          * {@link BrowserStartupFailureException} is preserved as the cause of the construction
          * exception. Interruption also preserves the calling thread's interrupt flag.
+         * If WebDriver session construction fails after the port is ready, the newly started
+         * process is terminated and its output pipe is closed, preserving the original cause.
          * </p>
          *
          * @return a new {@link Chrome} instance
@@ -248,12 +250,17 @@ public final class Chrome implements AutoCloseable {
                         var process = startProcess(new ProcessBuilder(chrome.defaultArgs).redirectErrorStream(true));
                         ChromeStartup.await(process, port, Duration.ofSeconds(3));
 
-                        // Attach WebDriver to the running Chrome process
-                        var options = new ChromeOptions();
-                        options.setBinary(chrome.chromePath);
-                        options.setExperimentalOption("debuggerAddress", "127.0.0.1:" + port);
-                        chrome.webDriver = new ChromeDriver(options);
-                        chrome.process = process;
+                        try {
+                            // Transfer process ownership only after the WebDriver session is established.
+                            var options = new ChromeOptions();
+                            options.setBinary(chrome.chromePath);
+                            options.setExperimentalOption("debuggerAddress", "127.0.0.1:" + port);
+                            chrome.webDriver = new ChromeDriver(options);
+                            chrome.process = process;
+                        } catch (Throwable failure) {
+                            ChromeStartup.terminate(process, failure);
+                            throw failure;
+                        }
                     }
                     case HOSTED -> {
                         var options = new ChromeOptions()
