@@ -16,38 +16,54 @@
 
 package io.allurx.kit.mybatis.handler;
 
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import io.allurx.kit.base.reflection.TypeToken;
 import io.allurx.kit.json.JacksonOperator;
 import io.allurx.kit.json.JsonOperator;
+import tools.jackson.databind.DefaultTyping;
+import tools.jackson.databind.jsontype.PolymorphicTypeValidator;
 
+import java.util.Objects;
 
 /**
- * Preserves type information of objects in JSON strings using a configured {@link ObjectMapper} to ensure accurate restoration of the original object during deserialization.
- * Supports serialization and deserialization of generic objects.
+ * Preserves polymorphic values using an explicit application-defined subtype policy.
+ * The validator must allow each permitted runtime type, including container implementations
+ * when they require type information. Use the narrowest policy suitable for the stored models.
+ * Each handler owns an immutable mapper derived from Jackson's default configuration.
+ * Automatic type information uses Jackson's default wrapper-array representation.
+ *
+ * <p>Register an instance with MyBatis programmatically, or define a subclass whose
+ * {@link Class} constructor supplies the application's validator. No unrestricted
+ * default validator is provided.</p>
  *
  * @param <T> The type of object returned by the mapper methods
  * @author allurx
- * @see GenericJsonTypeHandler#JACKSON_OPERATOR
  */
-public class GenericJsonTypeHandler<T> extends AbstractJsonTypeHandler<T, ObjectMapper> {
+public class GenericJsonTypeHandler<T> extends AbstractJsonTypeHandler<T> {
 
     /**
-     * JSON operator with default typing activated to preserve type information.
-     */
-    private static final JacksonOperator JACKSON_OPERATOR = JsonOperator.JACKSON_OPERATOR.with(ObjectMapper::copy)
-            .configure(objectMapper -> objectMapper.activateDefaultTyping(
-                    objectMapper.getPolymorphicTypeValidator(),
-                    ObjectMapper.DefaultTyping.NON_FINAL,
-                    JsonTypeInfo.As.PROPERTY
-            ));
-
-    /**
-     * Constructor.
+     * Creates a handler for a declared target class and its permitted runtime subtypes.
      *
-     * @param clazz The type of object returned
+     * @param type The declared target class
+     * @param validator The explicit policy for allowed polymorphic subtypes
      */
-    public GenericJsonTypeHandler(Class<T> clazz) {
-        super(JACKSON_OPERATOR, clazz);
+    public GenericJsonTypeHandler(Class<T> type, PolymorphicTypeValidator validator) {
+        super(operator(validator), type);
+    }
+
+    /**
+     * Creates a handler for a parameterized target type and its permitted runtime subtypes.
+     *
+     * @param type The target type, including its generic arguments
+     * @param validator The explicit policy for allowed polymorphic subtypes
+     */
+    public GenericJsonTypeHandler(TypeToken<T> type, PolymorphicTypeValidator validator) {
+        super(operator(validator), type);
+    }
+
+    private static JacksonOperator operator(PolymorphicTypeValidator validator) {
+        Objects.requireNonNull(validator, "validator");
+        return JsonOperator.JACKSON_OPERATOR.with(mapper -> mapper.rebuild()
+                .activateDefaultTyping(validator, DefaultTyping.NON_FINAL)
+                .build());
     }
 }

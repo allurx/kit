@@ -36,14 +36,32 @@ public interface JsonOperation {
     String toJsonString(Object source);
 
     /**
+     * Converts an object to JSON using its declared type, including generic element types.
+     *
+     * @param source the object to serialize
+     * @param type the declared type used to select serializers and type metadata
+     * @return the JSON representation
+     */
+    String toJsonString(Object source, Type type);
+
+    /**
      * Converts a JSON string to a Java object of the specified {@link Type}.
      *
      * @param json The JSON string.
      * @param type The {@link Type} of the Java object to be created.
-     * @param <T>  The type of the Java object to be created.
      * @return The Java object represented by the JSON string.
      */
-    <T> T fromJsonString(String json, Type type);
+    Object fromJsonString(String json, Type type);
+
+    /**
+     * Converts a JSON string to an object of the specified class.
+     *
+     * @param json the JSON string
+     * @param type the target class
+     * @param <T> the target type
+     * @return the deserialized object
+     */
+    <T> T fromJsonString(String json, Class<T> type);
 
     /**
      * Converts a JSON string to a Java object based on the specified {@link TypeToken#getType()}.

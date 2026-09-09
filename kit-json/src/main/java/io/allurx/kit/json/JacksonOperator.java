@@ -16,9 +16,10 @@
 
 package io.allurx.kit.json;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import io.allurx.kit.base.reflection.TypeToken;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.lang.reflect.Type;
 import java.util.function.Supplier;
@@ -30,24 +31,24 @@ import java.util.stream.IntStream;
  *
  * @author allurx
  */
-public class JacksonOperator extends AbstractJsonOperator<JacksonOperator, ObjectMapper> {
+public class JacksonOperator extends AbstractJsonOperator<JsonMapper> {
 
     /**
      * Constructor.
      *
-     * @param objectMapper An instance of {@link ObjectMapper}
+     * @param jsonMapper An instance of {@link JsonMapper}
      */
-    public JacksonOperator(ObjectMapper objectMapper) {
-        super(objectMapper);
+    public JacksonOperator(JsonMapper jsonMapper) {
+        super(jsonMapper);
     }
 
     @Override
-    public JacksonOperator with(Supplier<ObjectMapper> supplier) {
+    public JacksonOperator with(Supplier<JsonMapper> supplier) {
         return new JacksonOperator(supplier.get());
     }
 
     @Override
-    public JacksonOperator with(UnaryOperator<ObjectMapper> unaryOperator) {
+    public JacksonOperator with(UnaryOperator<JsonMapper> unaryOperator) {
         return new JacksonOperator(unaryOperator.apply(subject));
     }
 
@@ -55,22 +56,61 @@ public class JacksonOperator extends AbstractJsonOperator<JacksonOperator, Objec
     public String toJsonString(Object source) {
         try {
             return subject.writeValueAsString(source);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new JsonException(e.getMessage(), e);
         }
     }
 
     @Override
-    public <T> T fromJsonString(String json, Type type) {
+    public String toJsonString(Object source, Type type) {
         try {
-            return subject.readValue(json, subject.getTypeFactory().constructType(type));
-        } catch (JsonProcessingException e) {
+            return subject.writerFor(subject.constructType(type)).writeValueAsString(source);
+        } catch (JacksonException e) {
+            throw new JsonException(e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public Object fromJsonString(String json, Type type) {
+        try {
+            return subject.readValue(json, subject.constructType(type));
+        } catch (JacksonException e) {
+            throw new JsonException(e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public <T> T fromJsonString(String json, TypeToken<T> typeToken) {
+        try {
+            return subject.readValue(json, subject.constructType(typeToken.getType()));
+        } catch (JacksonException e) {
+            throw new JsonException(e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public Object copyProperties(Object source, Type type) {
+        try {
+            return subject.convertValue(source, subject.constructType(type));
+        } catch (JacksonException | IllegalArgumentException e) {
+            throw new JsonException(e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public <T> T copyProperties(Object source, TypeToken<T> typeToken) {
+        try {
+            return subject.convertValue(source, subject.constructType(typeToken.getType()));
+        } catch (JacksonException | IllegalArgumentException e) {
             throw new JsonException(e.getMessage(), e);
         }
     }
 
     @Override
     public boolean compare(String... jsons) {
+        if (jsons.length == 0) {
+            throw new IllegalArgumentException("At least one JSON string is required");
+        }
         JsonNode first = readTree(jsons[0]);
         return IntStream.range(1, jsons.length).allMatch(i -> first.equals(readTree(jsons[i])));
     }
@@ -84,7 +124,7 @@ public class JacksonOperator extends AbstractJsonOperator<JacksonOperator, Objec
     private JsonNode readTree(String json) {
         try {
             return subject.readTree(json);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new JsonException(e.getMessage(), e);
         }
     }

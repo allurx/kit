@@ -4,7 +4,7 @@
 - Kit 是面向外部消费者的 Java / JPMS 工具库；Java 基线及依赖版本以根 pom.xml 为准。构建前用 mvn -version 核对 Maven 实际使用的 JDK。
 - kit-base 承载基础工具且没有生产第三方依赖；kit-json 依赖 base；kit-mybatis 基于 json 提供数据库类型处理；kit-selenium 基于 base 封装浏览器。
 - 修改公共 API 或依赖时，同时审查 POM 与 main/test module-info.java。暴露其他模块类型时，检查消费者可读性；涉及模块契约的变更须验证最小独立 named-module consumer，不以 reactor 测试或 classpath 运行替代。
-- JSON 默认 operator 是共享对象，configure 会修改当前 backend；with 返回新 wrapper 不保证 backend 已复制。局部配置和测试须使用独立 backend，避免污染共享默认值。
+- JSON 默认 operator 是共享对象；局部配置通过 with 配合 Jackson rebuild / Gson newBuilder 创建独立 backend。with 返回新 wrapper 不代表 backend 已复制，配置和测试不得污染共享默认值。
 - MyBatis handler 的 JSON 是数据库存储格式。修改默认 JSON 配置、类型信息或模型命名时，核对旧值读取、SQL NULL、异常和 JDBC 行为；多态反序列化还须检查输入信任边界。
 
 ## 验证

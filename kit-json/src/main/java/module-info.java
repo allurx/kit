@@ -20,8 +20,7 @@
  */
 module io.allurx.kit.json {
     exports io.allurx.kit.json;
-    requires io.allurx.kit.base;
-    requires com.google.gson;
-    requires com.fasterxml.jackson.databind;
-    requires com.fasterxml.jackson.datatype.jsr310;
+    requires transitive io.allurx.kit.base;
+    requires transitive com.google.gson;
+    requires transitive tools.jackson.databind;
 }

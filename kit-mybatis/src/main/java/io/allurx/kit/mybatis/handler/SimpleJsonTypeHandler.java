@@ -16,17 +16,20 @@
 
 package io.allurx.kit.mybatis.handler;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import io.allurx.kit.base.reflection.TypeToken;
 import io.allurx.kit.json.JsonOperator;
 
-
 /**
- * Serializes and deserializes objects using a simple configuration of {@link ObjectMapper}.
+ * Serializes and deserializes values using Jackson's default JSON configuration.
+ * Both operations use the declared target type; no automatic polymorphic type information is added.
+ * Use {@link GenericJsonTypeHandler} with an explicit subtype policy to preserve runtime subtypes.
+ * The {@link Class} constructor supports MyBatis type-handler registration;
+ * a {@link TypeToken} can retain generic arguments for programmatic registration or a dedicated subclass.
  *
  * @param <T> The type of object returned by the mapper methods
  * @author allurx
  */
-public class SimpleJsonTypeHandler<T> extends AbstractJsonTypeHandler<T, ObjectMapper> {
+public class SimpleJsonTypeHandler<T> extends AbstractJsonTypeHandler<T> {
 
     /**
      * Constructor.
@@ -34,7 +37,16 @@ public class SimpleJsonTypeHandler<T> extends AbstractJsonTypeHandler<T, ObjectM
      * @param clazz The type of object returned
      */
     public SimpleJsonTypeHandler(Class<T> clazz) {
-        super(JsonOperator.JACKSON_OPERATOR.with(ObjectMapper::copy), clazz);
+        super(JsonOperator.JACKSON_OPERATOR, clazz);
+    }
+
+    /**
+     * Creates a handler for a parameterized target type.
+     *
+     * @param type The target type, including its generic arguments
+     */
+    public SimpleJsonTypeHandler(TypeToken<T> type) {
+        super(JsonOperator.JACKSON_OPERATOR, type);
     }
 }
 

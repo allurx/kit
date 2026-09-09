@@ -16,71 +16,78 @@
 
 package io.allurx.kit.mybatis.handler;
 
+import io.allurx.kit.base.reflection.TypeToken;
+import io.allurx.kit.json.JsonOperation;
 import org.apache.ibatis.type.BaseTypeHandler;
 import org.apache.ibatis.type.JdbcType;
-import io.allurx.kit.json.JsonOperator;
 
-import java.lang.reflect.Type;
 import java.sql.CallableStatement;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Optional;
+import java.util.Objects;
 
 /**
  * Base class for JSON type handlers, providing basic methods for serializing and deserializing objects.
  *
  * @param <T> The type of object returned by the mapper methods
- * @param <J> The type of the JSON operator
  * @author allurx
  */
-public abstract class AbstractJsonTypeHandler<T, J> extends BaseTypeHandler<T> {
+public abstract class AbstractJsonTypeHandler<T> extends BaseTypeHandler<T> {
 
     /**
      * JSON operator used for serialization and deserialization
      */
-    private final JsonOperator<J> jsonOperator;
+    private final JsonOperation jsonOperation;
 
     /**
      * The type of the object to be handled
      */
-    private final Type type;
+    private final TypeToken<T> type;
 
     /**
      * Constructor.
      *
-     * @param jsonOperator The {@link JsonOperator} used for JSON operations
+     * @param jsonOperation The JSON serialization and deserialization operations
      * @param type         The {@link #type} of the object to be handled
      */
-    public AbstractJsonTypeHandler(JsonOperator<J> jsonOperator, Type type) {
-        this.jsonOperator = jsonOperator;
-        this.type = type;
+    protected AbstractJsonTypeHandler(JsonOperation jsonOperation, Class<T> type) {
+        this(jsonOperation, TypeToken.of(Objects.requireNonNull(type, "type")));
+    }
+
+    /**
+     * Creates a handler for a parameterized target type.
+     *
+     * @param jsonOperation The JSON serialization and deserialization operations
+     * @param type The target type, including its generic arguments
+     */
+    protected AbstractJsonTypeHandler(JsonOperation jsonOperation, TypeToken<T> type) {
+        this.jsonOperation = Objects.requireNonNull(jsonOperation, "jsonOperation");
+        this.type = Objects.requireNonNull(type, "type");
     }
 
     @Override
     public void setNonNullParameter(PreparedStatement ps, int i, T parameter, JdbcType jdbcType) throws SQLException {
-        ps.setString(i, jsonOperator.toJsonString(parameter));
+        // Use the read type when writing so enabled polymorphic handling retains root and generic element type ids.
+        ps.setString(i, jsonOperation.toJsonString(parameter, type.getType()));
     }
 
     @Override
     public T getNullableResult(ResultSet rs, String columnName) throws SQLException {
-        return Optional.ofNullable(rs.getString(columnName))
-                .map(s -> jsonOperator.<T>fromJsonString(s, type))
-                .orElse(null);
+        return read(rs.getString(columnName));
     }
 
     @Override
     public T getNullableResult(ResultSet rs, int columnIndex) throws SQLException {
-        return Optional.ofNullable(rs.getString(columnIndex))
-                .map(s -> jsonOperator.<T>fromJsonString(s, type))
-                .orElse(null);
+        return read(rs.getString(columnIndex));
     }
 
     @Override
     public T getNullableResult(CallableStatement cs, int columnIndex) throws SQLException {
-        return Optional.ofNullable(cs.getString(columnIndex))
-                .map(s -> jsonOperator.<T>fromJsonString(s, type))
-                .orElse(null);
+        return read(cs.getString(columnIndex));
     }
 
+    private T read(String json) {
+        return json == null ? null : jsonOperation.fromJsonString(json, type);
+    }
 }

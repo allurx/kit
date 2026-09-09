@@ -19,6 +19,7 @@ package io.allurx.kit.json;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
+import io.allurx.kit.base.reflection.TypeToken;
 
 import java.lang.reflect.Type;
 import java.util.function.Supplier;
@@ -30,7 +31,7 @@ import java.util.stream.IntStream;
  *
  * @author allurx
  */
-public class GsonOperator extends AbstractJsonOperator<GsonOperator, Gson> {
+public class GsonOperator extends AbstractJsonOperator<Gson> {
 
     /**
      * Constructor.
@@ -47,7 +48,7 @@ public class GsonOperator extends AbstractJsonOperator<GsonOperator, Gson> {
     }
 
     @Override
-    public JsonOperator<Gson> with(UnaryOperator<Gson> unaryOperator) {
+    public GsonOperator with(UnaryOperator<Gson> unaryOperator) {
         return new GsonOperator(unaryOperator.apply(subject));
     }
 
@@ -57,12 +58,35 @@ public class GsonOperator extends AbstractJsonOperator<GsonOperator, Gson> {
     }
 
     @Override
-    public <T> T fromJsonString(String json, Type type) {
+    public String toJsonString(Object source, Type type) {
+        return subject.toJson(source, type);
+    }
+
+    @Override
+    public Object fromJsonString(String json, Type type) {
         return subject.fromJson(json, type);
     }
 
     @Override
+    public <T> T fromJsonString(String json, TypeToken<T> typeToken) {
+        return subject.fromJson(json, typeToken.getType());
+    }
+
+    @Override
+    public Object copyProperties(Object source, Type type) {
+        return subject.fromJson(subject.toJsonTree(source), type);
+    }
+
+    @Override
+    public <T> T copyProperties(Object source, TypeToken<T> typeToken) {
+        return subject.fromJson(subject.toJsonTree(source), typeToken.getType());
+    }
+
+    @Override
     public boolean compare(String... jsons) {
+        if (jsons.length == 0) {
+            throw new IllegalArgumentException("At least one JSON string is required");
+        }
         JsonElement first = JsonParser.parseString(jsons[0]);
         return IntStream.range(1, jsons.length).allMatch(i -> first.equals(JsonParser.parseString(jsons[i])));
     }
