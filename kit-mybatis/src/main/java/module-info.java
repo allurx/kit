@@ -15,9 +15,11 @@
  */
 /**
  * mybatis module
+ * <p>MyBatis declares a stable automatic module name but has no explicit module descriptor.</p>
  *
  * @author allurx
  */
+@SuppressWarnings("requires-transitive-automatic")
 module io.allurx.kit.mybatis {
     requires transitive org.mybatis;
     requires transitive java.sql;
