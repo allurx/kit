@@ -94,9 +94,27 @@ public abstract class AnnotatedTypeToken<T> extends TypeToken<T> {
         return annotatedType;
     }
 
+    /**
+     * Compares annotated types only with compatible annotated tokens.
+     * Plain tokens remain unequal even when no type annotations are present.
+     *
+     * @param o the object to compare
+     * @return whether both tokens have compatible equality semantics and equal annotated types
+     */
     @Override
     public boolean equals(Object o) {
-        return o instanceof AnnotatedTypeToken<?> target && annotatedType.equals(target.annotatedType);
+        return o instanceof AnnotatedTypeToken<?> target && target.canEqual(this) && annotatedType.equals(target.annotatedType);
+    }
+
+    /**
+     * Accepts only annotated tokens because annotations participate in equality.
+     *
+     * @param o the other object
+     * @return whether the object is an annotated token
+     */
+    @Override
+    protected boolean canEqual(Object o) {
+        return o instanceof AnnotatedTypeToken<?>;
     }
 
     @Override

@@ -17,6 +17,7 @@ package io.allurx.kit.base.test;
 
 import org.junit.jupiter.api.Test;
 import io.allurx.kit.base.reflection.AnnotatedTypeToken;
+import io.allurx.kit.base.reflection.TypeToken;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -31,9 +32,10 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 /**
- * Tests for {@link AnnotatedTypeToken} capturing annotations on different types.
+ * Tests annotation capture and value equality for {@link AnnotatedTypeToken}.
  *
  * @author allurx
  */
@@ -147,6 +149,38 @@ class AnnotatedTypeTokenTest {
 
         assertEquals(1, myAnnotation1.value());
         assertEquals(2, myAnnotation2.value());
+    }
+
+    /**
+     * Plain and annotated tokens remain unequal in both directions, even without type annotations.
+     */
+    @Test
+    void testEqualityBetweenTokenKinds() {
+        TypeToken<String> plain = new TypeToken<>() {};
+        TypeToken<String> annotated = new AnnotatedTypeToken<>() {};
+
+        assertNotEquals(plain, annotated);
+        assertNotEquals(annotated, plain);
+    }
+
+    /**
+     * Distinct anonymous subclasses retain value equality and matching hash codes within each token kind.
+     */
+    @Test
+    void testValueEqualityAcrossAnonymousSubclasses() {
+        TypeToken<String> plain = new TypeToken<>() {};
+        TypeToken<String> samePlain = new TypeToken<>() {};
+        AnnotatedTypeToken<String> annotated = new AnnotatedTypeToken<@MyAnnotation(1) String>() {};
+        AnnotatedTypeToken<String> sameAnnotated = new AnnotatedTypeToken<@MyAnnotation(1) String>() {};
+        AnnotatedTypeToken<String> differentAnnotated = new AnnotatedTypeToken<@MyAnnotation(2) String>() {};
+
+        assertEquals(plain, samePlain);
+        assertEquals(samePlain, plain);
+        assertEquals(plain.hashCode(), samePlain.hashCode());
+        assertEquals(annotated, sameAnnotated);
+        assertEquals(sameAnnotated, annotated);
+        assertEquals(annotated.hashCode(), sameAnnotated.hashCode());
+        assertNotEquals(differentAnnotated, annotated);
     }
 
 }

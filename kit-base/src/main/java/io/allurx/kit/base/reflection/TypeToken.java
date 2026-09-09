@@ -140,9 +140,28 @@ public abstract class TypeToken<T> {
         return TypeConverter.uncheckedCast(clazz);
     }
 
+    /**
+     * Compares captured types when the other token permits comparison with this token.
+     * Different anonymous subclasses can be equal.
+     *
+     * @param o the object to compare
+     * @return whether both tokens have compatible equality semantics and equal captured types
+     */
     @Override
     public boolean equals(Object o) {
-        return o instanceof TypeToken<?> target && capturedType.equals(target.capturedType);
+        return o instanceof TypeToken<?> target && target.canEqual(this) && capturedType.equals(target.capturedType);
+    }
+
+    /**
+     * Determines whether another object may be equal to this token.
+     * Subclasses that include additional state in equality must override this method together with
+     * {@link #equals(Object)} and {@link #hashCode()} to preserve symmetry.
+     *
+     * @param o the other object
+     * @return whether the object can participate in this token's equality comparison
+     */
+    protected boolean canEqual(Object o) {
+        return o instanceof TypeToken<?>;
     }
 
     @Override
