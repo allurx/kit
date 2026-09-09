@@ -25,7 +25,9 @@ import java.util.function.Supplier;
 
 /**
  * A Poller implementation that limits polling attempts based on a specified time duration and interval.
- * Polling stops either when the time duration expires or the termination condition is satisfied.
+ * The first attempt runs immediately, including when the duration is zero.
+ * Polling stops when the termination condition is satisfied or no time remains for another attempt.
+ * The deadline is checked again after sleeping; callbacks already in progress are not interrupted.
  * Supports custom sleeping behavior between polling attempts.
  * <p>Example usage of {@code IntervalBasedPoller}.</p>
  *
@@ -83,7 +85,7 @@ public class IntervalBasedPoller extends BasePoller {
         int cnt = 0;
         B result;
         Instant endInstant = clock.instant().plus(duration);
-        while (true) {
+        do {
 
             cnt++;
 
@@ -93,9 +95,9 @@ public class IntervalBasedPoller extends BasePoller {
             // Break if current time plus interval is after endInstant
             if (clock.instant().plus(interval).isAfter(endInstant)) break;
 
-            // Sleep for the specified interval
+            // Sleep may resume late, so recheck the deadline before another attempt.
             sleeper.sleep(interval);
-        }
+        } while (clock.instant().isBefore(endInstant));
         return new PollResult<>(cnt, result);
     }
 
