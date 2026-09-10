@@ -34,7 +34,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 /**
- * Verifies registration by constructor-supplied target types.
+ * Verifies registration by constructor-supplied target types and retention of generic element types.
+ * JDBC results are proxies supplying JSON text; these tests do not exercise a database or driver.
  *
  * @author allurx
  */

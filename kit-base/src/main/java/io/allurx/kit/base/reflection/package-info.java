@@ -14,15 +14,9 @@
  * limitations under the License.
  */
 /**
- * JSON conversion and structural comparison backed by Jackson and Gson.
- * Backend classes and Kit type tokens are transitively readable because they appear in the public API.
- * Consumer model packages may need to be opened to the backend that accesses them reflectively.
+ * Captures declared generic types and runtime type-use annotations without resolving call-site variables.
+ * Raw-class access erases generic arguments; unchecked casts require caller-verified compatibility.
  *
  * @author allurx
  */
-module io.allurx.kit.json {
-    exports io.allurx.kit.json;
-    requires transitive io.allurx.kit.base;
-    requires transitive com.google.gson;
-    requires transitive tools.jackson.databind;
-}
+package io.allurx.kit.base.reflection;

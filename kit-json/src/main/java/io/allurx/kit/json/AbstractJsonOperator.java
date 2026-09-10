@@ -24,7 +24,8 @@ import java.util.function.Function;
 import java.util.stream.IntStream;
 
 /**
- * Shares backend access, typed conversions, and comparison flow.
+ * Shares backend access, class-to-token delegation, and short-circuit comparison flow.
+ * Subclasses implement the backend's serialization, conversion, and equality rules.
  *
  * @param <J> the backend type
  * @author allurx
@@ -32,7 +33,7 @@ import java.util.stream.IntStream;
 public abstract class AbstractJsonOperator<J> implements JsonOperator<J> {
 
     /**
-     * The immutable backend used by this operator.
+     * The retained backend reference. A final reference does not make a custom backend immutable.
      */
     protected final J subject;
 
@@ -40,6 +41,7 @@ public abstract class AbstractJsonOperator<J> implements JsonOperator<J> {
      * Creates an operator around an existing backend.
      *
      * @param subject the backend, never null
+     * @throws NullPointerException if the backend is null
      */
     protected AbstractJsonOperator(J subject) {
         this.subject = Objects.requireNonNull(subject, "subject");
@@ -61,14 +63,17 @@ public abstract class AbstractJsonOperator<J> implements JsonOperator<J> {
     }
 
     /**
-     * Parses each input once, stopping at the first mismatch.
+     * Parses the first input and compares each subsequent input with it until a mismatch occurs.
+     * A single input is parsed and then returns true without invoking the equality predicate.
+     * Exceptions from parsing or comparison propagate to the caller.
      *
      * @param jsons the JSON strings to compare
-     * @param parser parses a JSON value
-     * @param equality compares two parsed values
+     * @param parser parses each visited JSON input once
+     * @param equality compares the first parsed value with a subsequent parsed value
      * @param <N> the parsed value type
      * @return whether all values are equivalent
      * @throws IllegalArgumentException if no JSON strings are supplied
+     * @throws NullPointerException if the input array is null
      */
     protected final <N> boolean compare(String[] jsons, Function<String, N> parser, BiPredicate<N, N> equality) {
         if (jsons.length == 0) {

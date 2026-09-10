@@ -33,8 +33,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
- * Verifies ATTACH mode with a real headless Chrome and an isolated profile.
+ * Verifies ATTACH mode with a real headless Chrome, a temporary user data directory, and a local HTML page.
  * Enable with {@code -Dkit.selenium.chromePath=/path/to/chrome}.
+ * This covers page control and WebDriver session closure; it does not assert that every browser process has exited.
  *
  * @author allurx
  */

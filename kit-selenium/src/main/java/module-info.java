@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 /**
- * selenium module
+ * Chrome launch and session lifecycle utilities built on Selenium.
+ * Selenium's API is readable by consumers because {@code Chrome.webDriver()} exposes its types;
+ * ChromeDriver and logging remain implementation dependencies. Applications supply their own SLF4J provider.
  *
  * @author allurx
  */

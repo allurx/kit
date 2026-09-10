@@ -16,8 +16,7 @@
 package io.allurx.kit.base.constant;
 
 /**
- * Defines constants for date and time format patterns.
- * <p>This class provides static constants for commonly used date and time format patterns to ensure consistency across the application.</p>
+ * Shared date and time pattern strings; no formatter, locale or time zone is configured here.
  *
  * @author allurx
  */
@@ -27,8 +26,8 @@ public final class DateTimeFormatConstants {
     }
 
     /**
-     * The date and time format pattern for "yyyy-MM-dd HH:mm:ss".
-     * <p>This format represents date and time with year, month, day, hour, minute, and second.</p>
+     * Date and 24-hour time through seconds, with no offset or fractional seconds.
+     * With {@link java.time.format.DateTimeFormatter}, {@code yyyy} denotes year-of-era.
      */
     public static final String YYYY_MM_DD_HH_MM_SS = "yyyy-MM-dd HH:mm:ss";
 

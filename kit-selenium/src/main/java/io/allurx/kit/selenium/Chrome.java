@@ -33,6 +33,7 @@ import java.util.Optional;
  * Owns a Chrome browser and its WebDriver session.
  * In {@link Mode#ATTACH}, Kit starts Chrome and connects ChromeDriver to its debugging port.
  * In {@link Mode#HOSTED}, ChromeDriver starts and manages Chrome.
+ * Use try-with-resources to close each successful build, including when browser operations fail.
  *
  * @author allurx
  */
@@ -62,9 +63,10 @@ public final class Chrome implements AutoCloseable {
     }
 
     /**
-     * Returns the {@link WebDriver} instance controlling the Chrome browser.
+     * Returns the owned session for direct Selenium operations.
+     * The same reference is returned on every call; its lifetime ends when this instance is closed.
      *
-     * @return the {@link WebDriver} instance
+     * @return the established WebDriver session
      */
     public WebDriver webDriver() {
         return webDriver;
@@ -72,6 +74,9 @@ public final class Chrome implements AutoCloseable {
 
     /**
      * Quits the owned WebDriver session and requests termination of the process started in ATTACH mode.
+     * The process termination request runs even if {@link WebDriver#quit()} fails. Unlike failed-startup
+     * cleanup, this method does not force termination of descendants or wait for process exit.
+     * Exceptions from the underlying cleanup operations propagate without a {@link BrowserException} wrapper.
      */
     @Override
     public void close() {
@@ -92,11 +97,13 @@ public final class Chrome implements AutoCloseable {
     }
 
     /**
-     * A builder class for constructing a {@link Chrome} instance.
+     * Mutable launch configuration for creating Chrome sessions.
      * <p>
-     * This builder allows configuration of Chrome startup parameters, communication modes, and more.
-     * It can be reused to create independent browser instances. Each instance must be closed separately.
-     * Configuration is mutable, so a builder must not be used concurrently without external synchronization.
+     * Both {@link #mode(Mode)} and {@link #chromePath(String)} must be set before building.
+     * Each build uses the current arguments and creates a new WebDriver session; later configuration
+     * changes do not affect earlier sessions. Each returned instance must be closed separately.
+     * Reuse does not isolate a configured user data directory between sessions. This builder must not
+     * be used concurrently without external synchronization.
      * </p>
      *
      * @author allurx
@@ -143,7 +150,8 @@ public final class Chrome implements AutoCloseable {
         }
 
         /**
-         * Adds Chrome startup arguments.
+         * Appends startup arguments in their supplied order, retaining duplicates.
+         * Each value is a separate argument; callers do not need to add shell quoting around paths.
          *
          * @param args Chrome startup arguments
          * @return the current ChromeBuilder instance for chaining
@@ -154,7 +162,8 @@ public final class Chrome implements AutoCloseable {
         }
 
         /**
-         * Removes Chrome startup arguments.
+         * Removes every occurrence of arguments that exactly match one of the supplied strings.
+         * This can also remove arguments enabled by default.
          *
          * @param args Chrome startup arguments
          * @return the current ChromeBuilder instance for chaining
@@ -167,7 +176,7 @@ public final class Chrome implements AutoCloseable {
         /**
          * Selects whether Kit or ChromeDriver starts the browser.
          *
-         * @param mode the browser startup mode
+         * @param mode the browser startup mode, or {@code null} to clear the selection
          * @return the current ChromeBuilder instance for chaining
          */
         public ChromeBuilder mode(Mode mode) {
@@ -176,9 +185,10 @@ public final class Chrome implements AutoCloseable {
         }
 
         /**
-         * Sets the path to the Chrome executable.
+         * Sets the Chrome executable used in either startup mode.
+         * The path is checked by the process launcher or ChromeDriver during {@link #build()}.
          *
-         * @param chromePath the absolute path to the Chrome binary
+         * @param chromePath the path to the Chrome binary, preferably absolute; {@code null} clears the path
          * @return the current ChromeBuilder instance for chaining
          */
         public ChromeBuilder chromePath(String chromePath) {
@@ -187,16 +197,14 @@ public final class Chrome implements AutoCloseable {
         }
 
         /**
-         * Finds an available port on the local machine.
-         * <p>
-         * This port is used for remote debugging when {@link Mode#ATTACH} is selected.
-         * </p>
+         * Obtains an operating system assigned port for ATTACH debugging and releases its reservation.
+         * Another process can claim the port before Chrome binds it; session construction must still succeed.
          *
-         * @return a random available port
+         * @return a port available when the temporary socket was opened
+         * @throws RuntimeException if the temporary socket cannot be opened or closed
          */
         private int findAvailablePort() {
             try (ServerSocket serverSocket = new ServerSocket(0)) {
-                // Port number 0 means the OS will assign a random available port
                 return serverSocket.getLocalPort();
             } catch (IOException e) {
                 LOGGER.error(e.getMessage(), e);
@@ -205,13 +213,11 @@ public final class Chrome implements AutoCloseable {
         }
 
         /**
-         * Starts a process with the given {@link ProcessBuilder}.
-         * <p>
-         * This method is used to start the Chrome process and wraps any checked exceptions.
-         * </p>
+         * Starts the configured Chrome process, retaining an I/O failure as the unchecked cause.
          *
          * @param processBuilder the {@link ProcessBuilder} to use
          * @return the started {@link Process}
+         * @throws RuntimeException if the process cannot be started
          */
         private Process startProcess(ProcessBuilder processBuilder) {
             try {
@@ -222,20 +228,25 @@ public final class Chrome implements AutoCloseable {
         }
 
         /**
-         * Constructs and returns a {@link Chrome} instance based on the builder configuration.
-         * Each successful call creates a separate session without changing the builder's configuration
-         * or any previously returned instance. The caller owns and must close each returned instance.
+         * Starts Chrome and creates a WebDriver session using the current configuration.
+         * Both mode and executable path are required. Each successful call returns a separately owned
+         * session without changing the builder configuration; the caller must close the returned instance.
          * <p>For ATTACH with regular Chrome 136+, use {@link #addArgs(String...)} to supply
          * {@code --user-data-dir=/path/to/dedicated-data}, pointing to a non-default directory.
          * Chrome for Testing is exempt from this remote-debugging restriction.
          * Concurrent ATTACH instances need different user data directories;
          * {@code --profile-directory} only selects a profile within a user data directory.
+         * </p>
          * <p>
-         * In {@link Mode#ATTACH} mode, starts Chrome and waits up to three seconds for the debugging port to accept
-         * a connection before creating the WebDriver session. Output is drained in the background
-         * and a bounded tail is included in startup failures. If the process exits, the port does
-         * not become ready, or startup is interrupted, cleanup requests termination of the process
-         * and its observed descendants, with at most one second of exit waiting. A
+         * In {@link Mode#ATTACH}, Kit starts Chrome, then applies a three-second deadline for its debugging
+         * port to accept a TCP connection before constructing ChromeDriver. Port readiness does not establish
+         * a usable debugging session. This deadline does not cover process creation, ChromeDriver construction,
+         * or failure cleanup. In {@link Mode#HOSTED}, ChromeDriver controls startup without this port probe.
+         * </p>
+         * <p>
+         * ATTACH output is drained in the background and a bounded tail is included in startup failures.
+         * If the process exits, the port does not become ready, or startup is interrupted, cleanup requests
+         * forced termination of the process and its observed descendants, with at most one second of exit waiting. A
          * {@link BrowserStartupFailureException} is preserved as the cause of the construction
          * exception. Interruption also preserves the calling thread's interrupt flag.
          * If WebDriver session construction fails after the port is ready, the same process-tree
@@ -243,7 +254,8 @@ public final class Chrome implements AutoCloseable {
          * </p>
          *
          * @return a new {@link Chrome} instance
-         * @throws BrowserException if Chrome fails to start or an error occurs during construction
+         * @throws BrowserException if required configuration is missing, Chrome fails to start, or session
+         *                          construction fails; the original failure is retained as the cause
          * @see <a href="https://developer.chrome.com/blog/remote-debugging-port">Chrome remote debugging requirements</a>
          */
         public Chrome build() {

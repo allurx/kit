@@ -29,28 +29,38 @@ import java.sql.SQLException;
 import java.util.Objects;
 
 /**
- * Base class for JSON type handlers, providing basic methods for serializing and deserializing objects.
+ * Maps a declared Java type to JSON text using JDBC {@code setString} and {@code getString}.
+ * The same declared type is used for writing and reading, including generic arguments.
+ * The database column and driver must accept string binding; database-specific JSON types
+ * may require explicit SQL casts or a different handler.
  *
- * @param <T> The type of object returned by the mapper methods
+ * <p>SQL {@code NULL} is returned as Java null without invoking JSON deserialization.
+ * Non-null column contents, including the JSON literal {@code null}, are passed to the backend.
+ * Null parameters are handled by {@link BaseTypeHandler#setParameter} using the supplied JDBC type.
+ * Direct calls to the methods declared here propagate JDBC and JSON failures; inherited
+ * {@code setParameter} and {@code getResult} calls add MyBatis parameter or result context.
+ *
+ * @param <T> the declared Java value type
  * @author allurx
  */
 public abstract class AbstractJsonTypeHandler<T> extends BaseTypeHandler<T> {
 
     /**
-     * JSON operator used for serialization and deserialization
+     * Serialization and deserialization configuration for the stored JSON format.
      */
     private final JsonOperation jsonOperation;
 
     /**
-     * The type of the object to be handled
+     * Declared read and write type, retaining generic arguments independently of registry lookup.
      */
     private final TypeToken<T> type;
 
     /**
-     * Constructor.
+     * Creates a handler for a concrete target class.
      *
-     * @param jsonOperation The JSON serialization and deserialization operations
-     * @param type         The {@link #type} of the object to be handled
+     * @param jsonOperation the non-null JSON operations
+     * @param type the non-null target class
+     * @throws NullPointerException if either argument is null
      */
     protected AbstractJsonTypeHandler(JsonOperation jsonOperation, Class<T> type) {
         this(jsonOperation, TypeToken.of(Objects.requireNonNull(type, "type")));
@@ -59,8 +69,9 @@ public abstract class AbstractJsonTypeHandler<T> extends BaseTypeHandler<T> {
     /**
      * Creates a handler for a parameterized target type.
      *
-     * @param jsonOperation The JSON serialization and deserialization operations
-     * @param type The target type, including its generic arguments
+     * @param jsonOperation the non-null JSON operations
+     * @param type the non-null target type, including its generic arguments
+     * @throws NullPointerException if either argument is null
      */
     protected AbstractJsonTypeHandler(JsonOperation jsonOperation, TypeToken<T> type) {
         this.jsonOperation = Objects.requireNonNull(jsonOperation, "jsonOperation");
@@ -71,29 +82,66 @@ public abstract class AbstractJsonTypeHandler<T> extends BaseTypeHandler<T> {
      * Registers this instance using the constructor's target type instead of MyBatis's generic-type inference.
      * Use this method instead of {@code registry.register(handler)} for programmatic registration.
      * Parameterized targets register under their raw class; generic arguments remain available for JSON operations.
+     * Consequently, handlers for {@code List<Person>} and {@code List<Address>} share the same
+     * Java-type key and cannot be selected by element type. Use explicit mappings or separate
+     * registries when the same raw type requires different configurations.
      *
-     * @param registry the registry to receive this handler
+     * @param registry the non-null registry to receive this handler
+     * @throws NullPointerException if the registry is null
      */
     public final void registerTo(TypeHandlerRegistry registry) {
         registry.register(type.getRawClass(), this);
     }
 
+    /**
+     * Serializes a non-null parameter with the declared type and binds the JSON text.
+     *
+     * @param ps the target statement
+     * @param i the one-based parameter index
+     * @param parameter the non-null Java value
+     * @param jdbcType the MyBatis JDBC type; string binding does not use it
+     * @throws SQLException if JDBC string binding fails
+     */
     @Override
     public void setNonNullParameter(PreparedStatement ps, int i, T parameter, JdbcType jdbcType) throws SQLException {
         // Use the read type when writing so enabled polymorphic handling retains root and generic element type ids.
         ps.setString(i, jsonOperation.toJsonString(parameter, type.getType()));
     }
 
+    /**
+     * Reads a named column as JSON using the declared target type.
+     *
+     * @param rs the result set positioned on a row
+     * @param columnName the column label
+     * @return the deserialized value, or null for SQL {@code NULL}
+     * @throws SQLException if JDBC string retrieval fails
+     */
     @Override
     public T getNullableResult(ResultSet rs, String columnName) throws SQLException {
         return read(rs.getString(columnName));
     }
 
+    /**
+     * Reads an indexed column as JSON using the declared target type.
+     *
+     * @param rs the result set positioned on a row
+     * @param columnIndex the one-based column index
+     * @return the deserialized value, or null for SQL {@code NULL}
+     * @throws SQLException if JDBC string retrieval fails
+     */
     @Override
     public T getNullableResult(ResultSet rs, int columnIndex) throws SQLException {
         return read(rs.getString(columnIndex));
     }
 
+    /**
+     * Reads an output parameter as JSON using the declared target type.
+     *
+     * @param cs the executed callable statement
+     * @param columnIndex the one-based output parameter index
+     * @return the deserialized value, or null for SQL {@code NULL}
+     * @throws SQLException if JDBC string retrieval fails
+     */
     @Override
     public T getNullableResult(CallableStatement cs, int columnIndex) throws SQLException {
         return read(cs.getString(columnIndex));

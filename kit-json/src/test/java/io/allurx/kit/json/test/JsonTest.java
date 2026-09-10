@@ -32,20 +32,13 @@ import static io.allurx.kit.json.JsonOperator.GSON_OPERATOR;
 import static io.allurx.kit.json.JsonOperator.JACKSON_OPERATOR;
 
 /**
- * Unit tests for JSON conversion, copying, and comparison using
- * both GSON and Jackson JSON operators.
- * <p>
- * These tests verify the correct serialization and deserialization of a list of Person objects,
- * as well as the ability to compare JSON strings and copy object properties.
- * </p>
+ * Exercises typed record conversion, in-memory copying, and structural comparison for both backends,
+ * with precision and numeric-equivalence regressions for Gson.
  *
  * @author allurx
  */
 public class JsonTest {
 
-    /**
-     * A simple record representing a Person with name, age, phone number, and creation time.
-     */
     record Person(String name, int age, String phoneNumber, LocalDateTime createdTime) {
     }
 
@@ -57,18 +50,12 @@ public class JsonTest {
     private static final TypeToken<List<Person>> TYPE_TOKEN = new TypeToken<List<Person>>() {
     };
 
-    /**
-     * Tests JSON serialization and deserialization using Jackson.
-     */
     @Test
     void testJacksonConversion() {
         String json = JACKSON_OPERATOR.toJsonString(PERSONS);
         assertEquals(PERSONS, JACKSON_OPERATOR.fromJsonString(json, TYPE_TOKEN));
     }
 
-    /**
-     * Tests property copying using Jackson.
-     */
     @Test
     void testJacksonCopy() {
         List<Person> copy = JACKSON_OPERATOR.copyProperties(PERSONS, TYPE_TOKEN);
@@ -85,18 +72,12 @@ public class JsonTest {
         assertTrue(JACKSON_OPERATOR.compare(JACKSON_OPERATOR.toJsonString(PERSONS), pretty.toJsonString(PERSONS)));
     }
 
-    /**
-     * Tests JSON serialization and deserialization using GSON.
-     */
     @Test
     void testGsonConversion() {
         String json = GSON_OPERATOR.toJsonString(PERSONS);
         assertEquals(PERSONS, GSON_OPERATOR.fromJsonString(json, TYPE_TOKEN));
     }
 
-    /**
-     * Tests property copying using GSON.
-     */
     @Test
     void testGsonCopy() {
         List<Person> copy = GSON_OPERATOR.copyProperties(PERSONS, TYPE_TOKEN);

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 /**
- * base module
+ * Dependency-free utilities for conditional flows, synchronous polling, functional adapters and reflection types.
  *
  * @author allurx
  */

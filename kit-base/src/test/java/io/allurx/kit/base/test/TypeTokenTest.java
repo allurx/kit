@@ -29,18 +29,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 /**
- * Tests for {@link TypeToken} to capture and validate various type information at runtime.
- * <p>These tests cover capturing generic types, parameterized types, type variables, wildcard types, and array types.</p>
+ * Verifies captured reflection types and raw classes, including unresolved variables and arrays.
  *
  * @author allurx
  */
 class TypeTokenTest {
 
     /**
-     * Tests capturing the class type directly.
-     * <p>Expected type is {@code String}.</p>
-     *
-     * @see Class
+     * A direct class argument is preserved as both the captured type and raw class.
      */
     @Test
     void testCaptureClass() {
@@ -54,8 +50,7 @@ class TypeTokenTest {
     }
 
     /**
-     * Tests capturing the type when using diamond operator {@code <>}.
-     * <p>Expected type is {@code Object} as the compiler infers it.</p>
+     * Without a target type, the diamond infers Object; reflection does not recover a more specific type.
      */
     @Test
     void testCaptureCompilerTypeInference() {
@@ -69,10 +64,7 @@ class TypeTokenTest {
     }
 
     /**
-     * Tests capturing a parameterized type, e.g., {@code List<String>}.
-     * <p>Checks that the actual type argument is {@code String} and raw class is {@code List}.</p>
-     *
-     * @see ParameterizedType
+     * Capturing preserves generic arguments while raw-class access erases them.
      */
     @Test
     void testCaptureParameterizedType() {
@@ -88,8 +80,7 @@ class TypeTokenTest {
     }
 
     /**
-     * Tests capturing a type variable with bounds, e.g., {@code T extends Map<Integer, String> & AutoCloseable}.
-     * <p>Validates bounds and type arguments of the type variable.</p>
+     * A type variable retains every bound; raw-class access resolves only its first upper bound.
      *
      * @param <T> a type variable with bounds
      * @see TypeVariable
@@ -100,28 +91,21 @@ class TypeTokenTest {
         };
         var capturedType = assertInstanceOf(TypeVariable.class, typeToken.getType());
 
-        // T's bounds: Map<Integer, String> & AutoCloseable
         var bounds = capturedType.getBounds();
 
-        // Check bounds[0] - Map<Integer, String>
         var bound0 = assertInstanceOf(ParameterizedType.class, bounds[0]);
         var actualTypeArguments = bound0.getActualTypeArguments();
         assertEquals(Integer.class, actualTypeArguments[0]);
         assertEquals(String.class, actualTypeArguments[1]);
 
-        // Check bounds[1] - AutoCloseable
         assertEquals(AutoCloseable.class, bounds[1]);
 
-        // Raw class should be Object
         var rawClass = typeToken.getRawClass();
         assertEquals(Map.class, rawClass);
     }
 
     /**
-     * Tests capturing a wildcard type, e.g., {@code List<?>}.
-     * <p>Validates that the wildcard type is correctly captured and the raw class is {@code List}.</p>
-     *
-     * @see WildcardType
+     * A wildcard remains a generic argument of the captured list type.
      */
     @Test
     void testCaptureWildcardType() {
@@ -135,8 +119,7 @@ class TypeTokenTest {
     }
 
     /**
-     * Tests capturing a generic array type, e.g., {@code T[]}.
-     * <p>Validates that the component type is a type variable and raw class is {@code Object[]}.</p>
+     * An unbounded generic component erases to Object, making the raw array class Object[].
      *
      * @param <T> the type variable
      * @see GenericArrayType
@@ -153,10 +136,7 @@ class TypeTokenTest {
     }
 
     /**
-     * Tests capturing a specific array type, e.g., {@code String[]}.
-     * <p>Validates that the captured type and raw class are both {@code String[]}.</p>
-     *
-     * @see Class#isArray()
+     * A concrete array is represented directly by its array class.
      */
     @Test
     void testCaptureArrayType() {

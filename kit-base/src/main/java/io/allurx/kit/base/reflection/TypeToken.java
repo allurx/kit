@@ -28,7 +28,11 @@ import java.util.Objects;
  * Type variables are preserved without resolving call-site type arguments.
  * <pre>{@code new TypeToken<List<String>>() {}.getType()}</pre>
  *
- * @param <T> The generic type to be captured
+ * <p>Capturing {@code T} inside a generic method preserves that method's type variable,
+ * even when the caller supplies a concrete type. Tokens describe types; they do not verify
+ * that a runtime value satisfies generic arguments. Explicit types are retained by reference.
+ *
+ * @param <T> the represented compile-time type
  * @author allurx
  * @see Type
  * @see Class
@@ -53,6 +57,7 @@ public abstract class TypeToken<T> {
 
     /**
      * Stores an explicit type without inspecting the subclass hierarchy.
+     * Subclasses are responsible for ensuring that the supplied type agrees with {@code T}.
      *
      * @param type the type
      * @throws NullPointerException if type is null
@@ -90,7 +95,7 @@ public abstract class TypeToken<T> {
     /**
      * Returns the captured or explicitly supplied type.
      *
-     * @return The generic type {@link T}.
+     * @return the non-null captured type, including unresolved type variables
      */
     public final Type getType() {
         return capturedType;
@@ -103,6 +108,8 @@ public abstract class TypeToken<T> {
      * {@link Class#cast(Object)} checks only this raw class, not generic arguments.
      *
      * @return the raw class, which may represent a supertype of {@code T}
+     * @throws IllegalArgumentException if the captured type or a recursively inspected component or bound
+     *                                  is not a supported reflection type
      */
     public final Class<? super T> getRawClass() {
         var clazz = switch (capturedType) {
@@ -120,6 +127,7 @@ public abstract class TypeToken<T> {
     /**
      * Compares captured types when the other token permits comparison with this token.
      * Different anonymous subclasses can be equal.
+     * Equality delegates to the captured {@link Type}; annotated tokens use their own equality policy.
      *
      * @param o the object to compare
      * @return whether both tokens have compatible equality semantics and equal captured types
@@ -141,11 +149,21 @@ public abstract class TypeToken<T> {
         return o instanceof TypeToken<?>;
     }
 
+    /**
+     * Returns the captured type's hash code, consistent with type-based equality.
+     *
+     * @return the captured type's hash code
+     */
     @Override
     public int hashCode() {
         return capturedType.hashCode();
     }
 
+    /**
+     * Returns a diagnostic description of the captured type.
+     *
+     * @return a description intended for display, not persistence or parsing
+     */
     @Override
     public String toString() {
         return "TypeToken{capturedType=%s}".formatted(capturedType);

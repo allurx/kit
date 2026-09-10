@@ -16,8 +16,10 @@
 package io.allurx.kit.selenium;
 
 /**
- * Exception thrown when the browser fails to start.
- * Inherits from {@link BrowserException}.
+ * Diagnostic failure from waiting for an ATTACH process to expose its debugging port.
+ * {@link Chrome.ChromeBuilder#build()} retains this exception as the cause of its {@link BrowserException}.
+ * The message includes recent process output when available; interruption is retained as a cause
+ * and cleanup failures may be attached as suppressed exceptions.
  *
  * @author allurx
  */

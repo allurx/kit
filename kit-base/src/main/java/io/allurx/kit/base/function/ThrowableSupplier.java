@@ -19,9 +19,8 @@ package io.allurx.kit.base.function;
 import java.util.function.Supplier;
 
 /**
- * A functional interface for supplying {@link Throwable} instances.<br>
- * This interface extends {@link Supplier} to provide a {@link Throwable} instead of a regular value.
- * It is useful when you need a supplier that can produce exceptions.
+ * A {@link Supplier} whose result is a {@link Throwable}, for lazily creating exceptions.
+ * Supplying the exception does not throw it; {@link #get()} does not declare checked exceptions.
  *
  * @param <T> the type of {@link Throwable} to be supplied
  * @author allurx

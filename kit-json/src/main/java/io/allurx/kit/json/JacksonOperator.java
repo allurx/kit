@@ -28,7 +28,10 @@ import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 
 /**
- * JSON operations using the Jackson library.
+ * JSON operations backed by a retained Jackson {@link JsonMapper}.
+ * Property copying uses {@code convertValue} in memory rather than a JSON string round trip.
+ * Jackson failures are wrapped in {@link JsonException}; {@link IllegalArgumentException} from
+ * property conversion is wrapped as well. Other argument errors retain the backend's exception type.
  *
  * @author allurx
  */
@@ -40,9 +43,12 @@ public class JacksonOperator extends AbstractJsonOperator<JsonMapper> {
     private final ObjectReader comparisonReader;
 
     /**
-     * Constructor.
+     * Creates an operator around the supplied mapper without copying it.
+     * A separate reader enables precise decimal comparison without changing mapper settings
+     * used by serialization, deserialization, or property conversion.
      *
-     * @param jsonMapper An instance of {@link JsonMapper}
+     * @param jsonMapper the non-null Jackson backend
+     * @throws NullPointerException if the backend is null
      */
     public JacksonOperator(JsonMapper jsonMapper) {
         super(jsonMapper);
@@ -118,10 +124,15 @@ public class JacksonOperator extends AbstractJsonOperator<JsonMapper> {
     /**
      * {@inheritDoc}
      * <p>Compares exact decimal values after stripping trailing zeros; signed decimal zeros compare equal.
-     * Integer and decimal nodes remain distinct. Other parsing settings follow this mapper.
+     * For example, {@code 1.0} equals {@code 1e0}, but integer {@code 1} remains distinct from both.
+     * All other equality rules use {@link JsonNode#equals(Object)}.
+     * Other parsing settings, including trailing-token handling, follow this mapper.
+     * Empty or whitespace-only input is represented by Jackson's missing node and compares equal
+     * to other empty inputs, but not to the JSON literal {@code null}.
      *
      * @throws JsonException if Jackson reports a parsing error
      * @throws NumberFormatException if a decimal exceeds {@code BigDecimal}'s range
+     * @throws IllegalArgumentException if a visited input is null or no inputs are supplied
      */
     @Override
     public boolean compare(String... jsons) {
@@ -131,8 +142,8 @@ public class JacksonOperator extends AbstractJsonOperator<JsonMapper> {
     /**
      * Parses a tree using the comparison reader.
      *
-     * @param json The JSON string to parse
-     * @return The resulting JSON tree
+     * @param json the JSON string to parse
+     * @return the resulting tree, including a missing node for empty input
      */
     private JsonNode readTree(String json) {
         try {

@@ -24,30 +24,39 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
- * The Poller interface defines a polling mechanism that allows repeated execution
- * based on a given input, processing function, and termination condition.
+ * Runs repeated attempts on the calling thread, testing each result for completion.
+ * An attempt retrieves fresh input, applies a function, then evaluates the termination predicate.
+ * Implementations determine additional stopping rules such as attempt limits or deadlines.
+ *
+ * <p>A returned result does not establish that the predicate matched: a limit or interruption
+ * may have ended polling. Callers that need to distinguish success must inspect the result.
  *
  * @author allurx
  */
 public interface Poller {
 
     /**
-     * Executes a polling operation with customizable input, function, and termination condition.
+     * Runs attempts until the predicate returns {@code true} or an implementation's limit is reached.
+     * Input and function results may be null if the following callback accepts null.
+     * Exception handling is implementation-specific; {@link BasePoller} supports configured
+     * failures from input retrieval and conversion, but always propagates predicate failures.
      *
      * @param <A>       the input type
      * @param <B>       the result type
      * @param supplier  the supplier that provides the input for each iteration
      * @param function  the function applied to each input to generate a result
      * @param predicate the condition that, when true, will terminate the polling
-     * @return a {@link PollResult} containing the count of iterations and the final result
+     * @return the actual attempt count and the last result, which may be null
+     * @throws NullPointerException if a required callback is null; validation timing depends on the implementation
      */
     <A, B> PollResult<B> poll(Supplier<? extends A> supplier,
                               Function<? super A, ? extends B> function,
                               Predicate<? super B> predicate);
 
     /**
-     * Polls the specified {@link Runnable} until the {@link BooleanSupplier} returns {@code true}.
+     * Runs the action before testing the condition, stopping on a match or the implementation's limit.
      * Both arguments are validated before polling starts or either callback executes.
+     * The action is adapted as the conversion function, so configured ignored exceptions apply to it.
      *
      * @param runnable        the operation to execute during each polling iteration
      * @param booleanSupplier the condition used to terminate the polling; polling stops when {@code true} is returned
@@ -63,15 +72,22 @@ public interface Poller {
     }
 
     /**
-     * PollResult holds the result of a polling operation, including the number of polling attempts
-     * and the final outcome.
+     * Stores the number of attempts and the last value without recording why polling stopped.
+     * An ignored failure counts as an attempt and replaces the last value with null.
+     * If no attempt ran, the supplied pollers return zero and null.
+     * The result value is retained by reference and is not copied.
      *
      * @param count  the number of polling attempts
-     * @param result the final result of the polling
+     * @param result the last result, possibly null
      * @param <T>    the type of the polling result
      */
     record PollResult<T>(int count, T result) implements MultiOutputSupplier<T> {
 
+        /**
+         * Returns the stored result without repeating the polling operation.
+         *
+         * @return the same value as {@link #result()}
+         */
         @Override
         public T get() {
             return result;

@@ -30,7 +30,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * Monitors the debugging port of a Chrome process created by {@link Chrome.ChromeBuilder}.
  * <p>
- * Startup is bounded using monotonic elapsed time. Merged process output is drained on a
+ * Port readiness uses a deadline based on monotonic elapsed time. Merged process output is drained on a
  * virtual thread, with only its recent tail retained for failure diagnostics. Output reading
  * continues after successful startup so a full pipe cannot block the running browser.
  * </p>
@@ -40,9 +40,6 @@ import java.util.concurrent.TimeUnit;
  */
 final class ChromeStartup {
 
-    /**
-     * Logger for unexpected failures when reading or closing process output.
-     */
     private static final Logger LOGGER = LoggerFactory.getLogger(ChromeStartup.class);
 
     /**
@@ -55,6 +52,9 @@ final class ChromeStartup {
      */
     private static final int OUTPUT_LIMIT = 8192;
 
+    /**
+     * Shared exit-wait budget for the root process and all observed descendants after termination requests.
+     */
     private static final Duration TERMINATION_TIMEOUT = Duration.ofSeconds(1);
 
     /**
@@ -64,13 +64,15 @@ final class ChromeStartup {
     }
 
     /**
-     * Waits until the debugging port accepts a connection while the process is still alive.
+     * Waits until the loopback debugging port accepts a TCP connection while the process is still alive.
+     * The probe does not verify the endpoint's identity or establish a ChromeDriver session.
      * <p>
      * The caller must merge stderr into stdout before starting the process. A startup failure
-     * requests termination of that process and its observed descendants, with at most one second
+     * requests forced termination of that process and its observed descendants, with at most one second
      * of exit waiting. Its output pipe is closed asynchronously without waiting for EOF.
      * Interruption is preserved on the calling thread and recorded as the cause of the startup
      * exception. A successful return leaves the process and output reader running.
+     * The readiness deadline excludes failure cleanup and the brief wait for final output after process exit.
      * </p>
      *
      * @param process the already started process owned by the caller, with merged stderr and stdout
@@ -85,7 +87,6 @@ final class ChromeStartup {
         long timeoutNanos = timeout.toNanos();
         var descendants = new HashSet<ProcessHandle>();
         var output = new Output();
-        // Keep draining after startup as well: a full pipe can block the browser later.
         var reader = Thread.ofVirtual().name("kit-chrome-output").start(() -> output.read(process));
         try {
             while (true) {
@@ -166,9 +167,13 @@ final class ChromeStartup {
     }
 
     /**
-     * Retains observed descendants across parent exit, then snapshots the remaining tree before killing the root.
+     * Retains observed descendants across parent exit, then snapshots the remaining tree before forcing termination.
      * Cleanup waits at most one second for exit, preserves interruption, and suppresses errors onto the original failure.
      * Process snapshots cannot capture children that detach before observation or appear after enumeration.
+     *
+     * @param process the root process owned by the failed construction attempt
+     * @param observed descendants retained during startup, including any whose parent has already exited
+     * @param failure the original failure to receive suppressed cleanup errors and exit timeouts
      */
     static void terminate(Process process, Set<ProcessHandle> observed, Throwable failure) {
         var descendants = new HashSet<>(observed);
@@ -211,6 +216,11 @@ final class ChromeStartup {
         }
     }
 
+    /**
+     * Waits within a single shared deadline, removing exited descendants from the supplied mutable set.
+     * Interruption is temporarily cleared so cleanup can finish, then restored before returning.
+     * A timeout is recorded on the original failure instead of replacing it.
+     */
     private static void awaitTermination(Process process, Set<ProcessHandle> descendants, Throwable failure) {
         long started = System.nanoTime();
         boolean interrupted = Thread.interrupted();
@@ -280,7 +290,6 @@ final class ChromeStartup {
          * @param process the process whose merged output is read on the background thread
          */
         private void read(Process process) {
-            // The process is launched with stderr merged into stdout.
             try (var reader = process.inputReader()) {
                 char[] buffer = new char[1024];
                 int length;

@@ -21,35 +21,41 @@ import io.allurx.kit.base.reflection.TypeToken;
 import java.lang.reflect.Type;
 
 /**
- * Defines basic JSON operations.
+ * Serializes and deserializes values using a configured JSON backend.
+ * Property discovery, adapters, null handling, and conversion failures follow that backend.
+ * Use {@link Class} for a concrete target class or {@link TypeToken} to retain generic arguments;
+ * deserialization into a dynamically supplied {@link Type} produces an {@link Object} result.
  *
  * @author allurx
  */
 public interface JsonOperation {
 
     /**
-     * Converts a Java object to its JSON string representation.
+     * Serializes a value using its runtime type and the backend's configuration.
      *
-     * @param source The Java object to be converted.
-     * @return The JSON string representation of the Java object.
+     * @param source the value to serialize, including null
+     * @return the JSON representation
      */
     String toJsonString(Object source);
 
     /**
-     * Converts an object to JSON using its declared type, including generic element types.
+     * Serializes a value using a declared type, including generic element types.
+     * The backend uses this type when resolving serializers and type metadata; runtime subtype
+     * handling still follows its configuration.
      *
      * @param source the object to serialize
-     * @param type the declared type used to select serializers and type metadata
+     * @param type the non-null declared type, compatible with the source value
      * @return the JSON representation
      */
     String toJsonString(Object source, Type type);
 
     /**
-     * Converts a JSON string to a Java object of the specified {@link Type}.
+     * Deserializes JSON into a dynamically supplied type.
+     * This overload does not infer a statically typed result from the assignment target.
      *
-     * @param json The JSON string.
-     * @param type The {@link Type} of the Java object to be created.
-     * @return The Java object represented by the JSON string.
+     * @param json the JSON input
+     * @param type the non-null target type, including any generic arguments
+     * @return the deserialized value, which may be null according to the backend and target type
      */
     Object fromJsonString(String json, Type type);
 
@@ -57,19 +63,20 @@ public interface JsonOperation {
      * Converts a JSON string to an object of the specified class.
      *
      * @param json the JSON string
-     * @param type the target class
+     * @param type the non-null target class; use a type token for parameterized targets
      * @param <T> the target type
-     * @return the deserialized object
+     * @return the deserialized value, which may be null according to the backend and target type
      */
     <T> T fromJsonString(String json, Class<T> type);
 
     /**
-     * Converts a JSON string to a Java object based on the specified {@link TypeToken#getType()}.
+     * Deserializes JSON into the type captured by a token, preserving generic arguments.
+     * For example, {@code new TypeToken<List<Person>>() {}} retains the list's element type.
      *
-     * @param json      The JSON string.
-     * @param typeToken The {@link TypeToken} representing the type of the Java object to be created.
-     * @param <T>       The type of the Java object to be created.
-     * @return The Java object represented by the JSON string.
+     * @param json the JSON input
+     * @param typeToken the non-null target type token
+     * @param <T> the target type
+     * @return the deserialized value, which may be null according to the backend and target type
      */
     <T> T fromJsonString(String json, TypeToken<T> typeToken);
 }

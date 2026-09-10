@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 /**
- * selenium test module
+ * Selenium tests with controlled startup fixtures and an opt-in real Chrome ATTACH test.
+ * The test JVM's directed {@code --add-opens} permits access to the internal startup helper.
  *
  * @author allurx
  */

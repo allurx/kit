@@ -28,7 +28,11 @@ import java.lang.reflect.ParameterizedType;
  * Type variables and their annotated bounds are preserved without resolving call-site type arguments.
  * <pre>{@code new AnnotatedTypeToken<List<@MyAnnotation String>>() {}.getAnnotatedType()}</pre>
  *
- * @param <T> The type whose annotations are captured
+ * <p>Annotations are available through {@link #getAnnotatedType()} and its nested annotated types.
+ * Inherited {@link #getType()} and {@link #getRawClass()} expose the underlying type without annotations.
+ * Equality and hashing delegate to the captured {@link AnnotatedType} implementation.
+ *
+ * @param <T> the type whose annotations are captured
  * @author allurx
  * @see AnnotatedType
  * @see ParameterizedType
@@ -55,8 +59,10 @@ public abstract class AnnotatedTypeToken<T> extends TypeToken<T> {
 
     /**
      * Stores an explicit annotated type without inspecting the subclass hierarchy.
+     * The value is retained by reference; subclasses must ensure its underlying type agrees with {@code T}.
      *
      * @param annotatedType the annotated type
+     * @throws NullPointerException if annotatedType or its underlying type is null
      */
     protected AnnotatedTypeToken(AnnotatedType annotatedType) {
         super(annotatedType.getType());
@@ -70,6 +76,7 @@ public abstract class AnnotatedTypeToken<T> extends TypeToken<T> {
      *
      * @param annotatedType the annotated type to capture
      * @return a token preserving the supplied type and annotations without claiming a specific compile-time type
+     * @throws NullPointerException if annotatedType or its underlying type is null
      */
     public static AnnotatedTypeToken<?> of(AnnotatedType annotatedType) {
         return new AnnotatedTypeToken<>(annotatedType) {
@@ -79,7 +86,7 @@ public abstract class AnnotatedTypeToken<T> extends TypeToken<T> {
     /**
      * Returns the captured {@link AnnotatedType}.
      *
-     * @return the annotated type of {@link T}
+     * @return the non-null annotated type, including annotations on generic arguments and bounds
      */
     public final AnnotatedType getAnnotatedType() {
         return annotatedType;
@@ -108,11 +115,21 @@ public abstract class AnnotatedTypeToken<T> extends TypeToken<T> {
         return o instanceof AnnotatedTypeToken<?>;
     }
 
+    /**
+     * Returns the annotated type's hash code, consistent with annotated-type equality.
+     *
+     * @return the annotated type's hash code
+     */
     @Override
     public int hashCode() {
         return annotatedType.hashCode();
     }
 
+    /**
+     * Returns a diagnostic description of the captured annotated type.
+     *
+     * @return a description intended for display, not persistence or parsing
+     */
     @Override
     public String toString() {
         return "AnnotatedTypeToken{annotatedType=%s}".formatted(annotatedType);

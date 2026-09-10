@@ -23,7 +23,9 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 /**
- * An interface that extends {@link Supplier} to provide multiple types of results.
+ * Adapts a supplied value to common result containers or an unchecked target type.
+ * Each adapter calls {@link #get()} exactly once when invoked; adapters do not cache results
+ * or defer evaluation until the returned container is consumed. Supplier failures propagate unchanged.
  *
  * @param <T> the type of result supplied by this provider
  * @author allurx
@@ -31,18 +33,18 @@ import java.util.stream.Stream;
 public interface MultiOutputSupplier<T> extends Supplier<T> {
 
     /**
-     * Returns the result wrapped in an {@link Optional}.
+     * Evaluates the supplier and wraps a non-null result in an {@link Optional}.
      *
-     * @return the result wrapped in an {@link Optional}.
+     * @return an empty optional for null, otherwise an optional containing the result
      */
     default Optional<T> getAsOptional() {
         return Optional.ofNullable(get());
     }
 
     /**
-     * Returns the result wrapped in an {@link Conditional}.
+     * Evaluates the supplier and starts a fresh conditional chain with its result.
      *
-     * @return the result wrapped in an {@link Conditional}.
+     * @return a new conditional whose input is the result, including null
      */
     default Conditional<T> getAsConditional() {
         return Conditional.of(get());
@@ -53,7 +55,7 @@ public interface MultiOutputSupplier<T> extends Supplier<T> {
      * <p>
      * If the result is null, an empty stream is returned.
      *
-     * @return the result wrapped in an {@link Stream}.
+     * @return an empty stream for null, otherwise a single-element stream
      */
     default Stream<T> getAsStream() {
         return Stream.ofNullable(get());
@@ -62,9 +64,11 @@ public interface MultiOutputSupplier<T> extends Supplier<T> {
     /**
      * Evaluates this supplier once and returns its result with an
      * {@linkplain TypeConverter#uncheckedCast(Object) unchecked cast}.
+     * The caller must ensure compatibility with {@code R}; generic type arguments are not validated.
      *
      * @param <R> the target type
      * @return the supplied result as the target type
+     * @see TypeConverter#uncheckedCast(Object)
      */
     default <R> R getAsType() {
         return TypeConverter.uncheckedCast(get());

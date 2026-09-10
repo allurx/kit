@@ -13,16 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 /**
- * JSON conversion and structural comparison backed by Jackson and Gson.
- * Backend classes and Kit type tokens are transitively readable because they appear in the public API.
- * Consumer model packages may need to be opened to the backend that accesses them reflectively.
+ * MyBatis handlers for storing declared Java types as JSON text.
+ * {@link io.allurx.kit.mybatis.handler.SimpleJsonTypeHandler} uses default Jackson mapping;
+ * {@link io.allurx.kit.mybatis.handler.GenericJsonTypeHandler} adds polymorphic type information
+ * under an explicit subtype policy. Their shared JDBC and registration contracts are defined by
+ * {@link io.allurx.kit.mybatis.handler.AbstractJsonTypeHandler}.
  *
  * @author allurx
  */
-module io.allurx.kit.json {
-    exports io.allurx.kit.json;
-    requires transitive io.allurx.kit.base;
-    requires transitive com.google.gson;
-    requires transitive tools.jackson.databind;
-}
+package io.allurx.kit.mybatis.handler;

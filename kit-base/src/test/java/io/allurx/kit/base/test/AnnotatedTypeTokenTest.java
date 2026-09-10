@@ -49,8 +49,6 @@ class AnnotatedTypeTokenTest {
 
     /**
      * Tests capturing annotations on a simple class type.
-     *
-     * @see sun.reflect.annotation.AnnotatedTypeFactory.AnnotatedTypeBaseImpl
      */
     @Test
     void testCaptureAnnotationOnClass() {
@@ -60,7 +58,6 @@ class AnnotatedTypeTokenTest {
         var annotatedType = annotatedTypeToken.getAnnotatedType();
         var myAnnotation = annotatedType.getDeclaredAnnotation(MyAnnotation.class);
 
-        // assertInstanceOf(sun.reflect.annotation.AnnotatedTypeFactory.AnnotatedTypeBaseImpl.class, annotatedType);
         assertEquals(1, myAnnotation.value());
     }
 
@@ -96,11 +93,9 @@ class AnnotatedTypeTokenTest {
 
         var annotatedType = assertInstanceOf(AnnotatedTypeVariable.class, annotatedTypeToken.getAnnotatedType());
 
-        // T's bounds: Map<Integer, String> & AutoCloseable
         var bounds = annotatedType.getAnnotatedBounds();
         var bound0 = assertInstanceOf(AnnotatedParameterizedType.class, bounds[0]);
         var bound1 = bounds[1];
-        // assertInstanceOf(sun.reflect.annotation.AnnotatedTypeFactory.AnnotatedTypeBaseImpl.class, bound1);
 
         var myAnnotation1 = annotatedType.getDeclaredAnnotation(MyAnnotation.class);
         var myAnnotation2 = bound0.getDeclaredAnnotation(MyAnnotation.class);

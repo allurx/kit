@@ -31,7 +31,7 @@ import java.util.Optional;
 class ConditionalTest {
 
     /**
-     * Tests a conditional flow with multiple branches and returns the result.
+     * The first match supplies the result even when later branches declare different mapping types.
      */
     @Test
     void testConditional() {
@@ -49,7 +49,7 @@ class ConditionalTest {
     }
 
     /**
-     * Tests the function of the Conditional class.
+     * A matching branch passes its mapped value to following callbacks and result access.
      */
     @Test
     void testConditionalFunction() {

@@ -13,16 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 /**
- * JSON conversion and structural comparison backed by Jackson and Gson.
- * Backend classes and Kit type tokens are transitively readable because they appear in the public API.
- * Consumer model packages may need to be opened to the backend that accesses them reflectively.
+ * Typed JSON serialization, conversion, and structural comparison through {@link io.allurx.kit.json.JsonOperator}.
+ * {@link io.allurx.kit.json.JacksonOperator} and {@link io.allurx.kit.json.GsonOperator} retain their
+ * backend's configuration and document the differences in parsing and comparison semantics.
  *
  * @author allurx
  */
-module io.allurx.kit.json {
-    exports io.allurx.kit.json;
-    requires transitive io.allurx.kit.base;
-    requires transitive com.google.gson;
-    requires transitive tools.jackson.databind;
-}
+package io.allurx.kit.json;

@@ -176,6 +176,9 @@ public class ChromeStartupTest {
         }
     }
 
+    /**
+     * Exercises the post-readiness cleanup path directly; no ChromeDriver is constructed in this test.
+     */
     @Test
     void terminatesTheProcessTreeAfterDriverConstructionFailure() throws Exception {
         try (var tree = startProcessTree()) {
@@ -192,6 +195,10 @@ public class ChromeStartupTest {
         }
     }
 
+    /**
+     * Uses a test-owned socket to isolate the readiness probe from process behavior.
+     * Successful TCP readiness leaves process ownership with the caller.
+     */
     @Test
     void keepsTheProcessTreeAliveAfterSuccessfulStartup() throws Exception {
         try (var tree = startProcessTree();
@@ -356,6 +363,9 @@ public class ChromeStartupTest {
         method.invoke(null, process, failure);
     }
 
+    /**
+     * Forces the root to exit during descendant enumeration, making the retained snapshot necessary for cleanup.
+     */
     private static Process exitsAfterDescendantsObserved(Process root) {
         return new Process() {
             @Override
@@ -414,6 +424,10 @@ public class ChromeStartupTest {
         };
     }
 
+    /**
+     * Starts a root, child, and grandchild and waits for all three Java processes before exercising cleanup.
+     * Any additional observed processes are retained as part of this fixture's cleanup ownership.
+     */
     private static ProcessTree startProcessTree() throws Exception {
         var root = startProcess("tree", 2);
         var owned = new ArrayList<ProcessHandle>();
@@ -441,6 +455,9 @@ public class ChromeStartupTest {
         }
     }
 
+    /**
+     * Retains process handles independently of parent associations so test cleanup survives an early root exit.
+     */
     private record ProcessTree(Process root, List<ProcessHandle> owned) implements AutoCloseable {
         void assertExited() throws Exception {
             for (var handle : owned) {

@@ -20,22 +20,24 @@ import io.allurx.kit.base.reflection.TypeToken;
 import io.allurx.kit.json.JsonOperator;
 
 /**
- * Serializes and deserializes values using Jackson's default JSON configuration.
- * Both operations use the declared target type; no automatic polymorphic type information is added.
+ * Serializes and deserializes values using the shared Jackson operator's default configuration.
+ * Both operations use the declared target type; this handler does not enable default typing.
+ * Model annotations still participate in Jackson mapping.
  * Use {@link GenericJsonTypeHandler} with an explicit subtype policy to preserve runtime subtypes.
  * The {@link Class} constructor supports MyBatis type-handler registration;
  * a {@link TypeToken} can retain generic arguments for programmatic registration or a dedicated subclass.
  * Register configured instances with {@link #registerTo(org.apache.ibatis.type.TypeHandlerRegistry)}.
  *
- * @param <T> The type of object returned by the mapper methods
+ * @param <T> the declared Java value type
  * @author allurx
  */
 public class SimpleJsonTypeHandler<T> extends AbstractJsonTypeHandler<T> {
 
     /**
-     * Constructor.
+     * Creates a handler for a concrete target class, including MyBatis constructor-based registration.
      *
-     * @param clazz The type of object returned
+     * @param clazz the non-null target class
+     * @throws NullPointerException if the target class is null
      */
     public SimpleJsonTypeHandler(Class<T> clazz) {
         super(JsonOperator.JACKSON_OPERATOR, clazz);
@@ -43,8 +45,10 @@ public class SimpleJsonTypeHandler<T> extends AbstractJsonTypeHandler<T> {
 
     /**
      * Creates a handler for a parameterized target type.
+     * The token retains generic arguments for JSON conversion; registry lookup still uses its raw class.
      *
-     * @param type The target type, including its generic arguments
+     * @param type the non-null target type, including its generic arguments
+     * @throws NullPointerException if the target type is null
      */
     public SimpleJsonTypeHandler(TypeToken<T> type) {
         super(JsonOperator.JACKSON_OPERATOR, type);

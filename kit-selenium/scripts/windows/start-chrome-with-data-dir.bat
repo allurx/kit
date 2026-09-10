@@ -1,4 +1,5 @@
 @echo off
+rem Manual example: opens Telegram using the persistent user data directory below. Adjust the path before use.
 chcp 65001  
 start chrome.exe^
   "https://web.telegram.org/a/"^

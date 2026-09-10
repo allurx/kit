@@ -32,16 +32,19 @@ import java.util.function.UnaryOperator;
 import java.util.stream.IntStream;
 
 /**
- * JSON operations using the Gson library.
+ * JSON operations backed by a retained {@link Gson} instance.
+ * Property copying converts through a JSON tree in memory and applies the configured adapters.
+ * Gson exceptions propagate without being wrapped in {@link JsonException}.
  *
  * @author allurx
  */
 public class GsonOperator extends AbstractJsonOperator<Gson> {
 
     /**
-     * Constructor.
+     * Creates an operator around the supplied Gson instance without copying it.
      *
-     * @param gson An instance of {@link Gson}
+     * @param gson the non-null Gson backend
+     * @throws NullPointerException if the backend is null
      */
     public GsonOperator(Gson gson) {
         super(gson);
@@ -89,12 +92,16 @@ public class GsonOperator extends AbstractJsonOperator<Gson> {
 
     /**
      * {@inheritDoc}
-     * <p>Uses this Gson's parsing settings and exact numeric equality:
-     * {@code 1}, {@code 1.0}, and {@code 1e0} compare equal.
+     * <p>Uses this Gson's parsing settings, including strictness. Numeric values are compared
+     * as {@link BigDecimal} throughout nested arrays and objects, so {@code 1}, {@code 1.0},
+     * and {@code 1e0} compare equal without losing large-integer or decimal precision.
+     * Signed zeros also compare equal. Empty input is rejected; the JSON literal {@code null}
+     * is a valid value.
      *
-     * @throws NullPointerException if the array or a parsed input is null
-     * @throws JsonSyntaxException if a parsed input is empty, invalid, or contains extra JSON values
-     * @throws NumberFormatException if a compared number exceeds {@link BigDecimal}'s range
+     * @throws NullPointerException if the array or a visited input is null
+     * @throws JsonSyntaxException if a visited input is empty, violates the configured syntax rules,
+     *                            or contains extra JSON values
+     * @throws NumberFormatException if a compared number cannot be represented by {@link BigDecimal}
      */
     @Override
     public boolean compare(String... jsons) {

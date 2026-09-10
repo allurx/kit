@@ -27,51 +27,39 @@ import java.util.function.Supplier;
 import static io.allurx.kit.base.reflection.TypeConverter.uncheckedCast;
 
 /**
- * Provides a fluent API for constructing conditional branching logic,
- * similar to traditional if-elseif-else statements. This class enables
- * building complex conditional structures in a concise and readable format.
+ * Evaluates an {@code if / else if / else} chain as its methods are called.
+ * Conditions and actions run immediately; retrieving a result does not execute the chain again.
  *
  * <p>Usage example:
  * <pre>{@code
- *      Conditional.of(input)
- *     .when(condition).run(() -> System.out.println("if"))
- *     .elseIf(condition).run(() -> System.out.println("else if"))
- *     .orElse().run(() -> System.out.println("else"));
+ * Conditional.of(7)
+ *         .when(value -> value < 0).map(value -> "negative")
+ *         .elseIf(value -> value == 0).map(value -> "zero")
+ *         .orElse().map(value -> "positive")
+ *         .get(); // "positive"
  * }</pre>
  *
- * <p>This is equivalent to:
- * <pre>{@code
- *     if (condition) {
- *         System.out.println("if");
- *     } else if (condition) {
- *         System.out.println("else if");
- *     } else {
- *         System.out.println("else");
- *     }
- * }</pre>
- *
- * <p>Supports short-circuiting: once a condition is satisfied, subsequent conditions
- * and actions are skipped.
+ * <p>Once a branch matches, later {@code elseIf} conditions and later branch actions
+ * are skipped. Predicates receive the original input, including {@code null}.
+ * Callback exceptions propagate to the caller; skipped callbacks are not dereferenced.
  *
  * <p>Branch type parameters describe callback inputs when that branch executes.
  * Results use {@link Object}: a skipped mapping can retain the original input or
  * an earlier branch's result. {@code getAsType()} is an explicit unchecked cast.
  *
- * <p><strong>Note:</strong> This class is not thread-safe. Ensure proper synchronization
- * if using in a concurrent environment.
+ * <p>Use a fresh instance for each chain. Branches share mutable match state with their
+ * enclosing instance, so restarting or forking a chain does not create independent state.
+ * Instances and their branches are not thread-safe.
  *
  * @param <I> the type of the input value
  * @author allurx
  */
 public final class Conditional<I> {
 
-    /**
-     * The input used in conditional flow.
-     */
     private final I input;
 
     /**
-     * Indicates if any condition has been met.
+     * Shared by every branch created from this instance, including mapped branches.
      */
     private boolean hit = false;
 
@@ -82,7 +70,7 @@ public final class Conditional<I> {
     /**
      * Creates a new {@code Conditional} instance with the specified input.
      *
-     * @param input the input for the conditional flow
+     * @param input the original input, which may be null
      * @param <I>   the type of input value
      * @return a new {@code Conditional} instance
      */
@@ -91,7 +79,8 @@ public final class Conditional<I> {
     }
 
     /**
-     * Initiates a conditional flow with a specified boolean condition.
+     * Creates the initial branch from an already evaluated condition.
+     * Unlike {@code elseIf}, this method does not consult earlier match state.
      *
      * @param condition the initial condition to evaluate
      * @return an {@link IfBranch} instance for further branching
@@ -101,20 +90,22 @@ public final class Conditional<I> {
     }
 
     /**
-     * Initiates a conditional flow using a {@link BooleanSupplier} to evaluate the condition.
+     * Evaluates the supplier once and creates the initial branch.
      *
      * @param booleanSupplier the supplier that provides the boolean condition
      * @return an {@link IfBranch} instance for further branching
+     * @throws NullPointerException if booleanSupplier is null
      */
     public IfBranch<I> when(BooleanSupplier booleanSupplier) {
         return when(booleanSupplier.getAsBoolean());
     }
 
     /**
-     * Initiates a conditional flow with a predicate that tests the input.
+     * Evaluates the predicate once against the original input and creates the initial branch.
      *
      * @param predicate the predicate used to evaluate the input
      * @return an {@link IfBranch} instance for further branching
+     * @throws NullPointerException if predicate is null
      */
     public IfBranch<I> when(Predicate<? super I> predicate) {
         return when(predicate.test(input));
@@ -131,6 +122,14 @@ public final class Conditional<I> {
             super(branchHit, output);
         }
 
+        /**
+         * Maps this branch's value if it matched; otherwise retains its stored value.
+         *
+         * @param function the mapping function, evaluated only for a matching branch
+         * @param <U> the callback input type after a successful mapping
+         * @return a new branch with the mapped value, or this skipped branch
+         * @throws NullPointerException if this branch matched and function is null
+         */
         @Override
         public <U> IfBranch<U> map(Function<? super O, ? extends U> function) {
             return branchHit ? new IfBranch<>(true, function.apply(output)) : uncheckedCast(this);
@@ -149,6 +148,14 @@ public final class Conditional<I> {
             super(branchHit, output);
         }
 
+        /**
+         * Maps this branch's value if it matched; otherwise retains its stored value.
+         *
+         * @param function the mapping function, evaluated only for a matching branch
+         * @param <U> the callback input type after a successful mapping
+         * @return a new branch with the mapped value, or this skipped branch
+         * @throws NullPointerException if this branch matched and function is null
+         */
         @Override
         public <U> ElseIfBranch<U> map(Function<? super O, ? extends U> function) {
             return branchHit ? new ElseIfBranch<>(true, function.apply(output)) : uncheckedCast(this);
@@ -167,6 +174,14 @@ public final class Conditional<I> {
             super(branchHit, output);
         }
 
+        /**
+         * Maps this branch's value if no earlier branch matched; otherwise retains the earlier result.
+         *
+         * @param function the mapping function, evaluated only for a matching branch
+         * @param <U> the callback input type after a successful mapping
+         * @return a new branch with the mapped value, or this skipped branch
+         * @throws NullPointerException if this branch matched and function is null
+         */
         @Override
         public <U> ElseBranch<U> map(Function<? super O, ? extends U> function) {
             return branchHit ? new ElseBranch<>(true, function.apply(output)) : uncheckedCast(this);
@@ -186,27 +201,31 @@ public final class Conditional<I> {
         }
 
         /**
-         * Adds an "else if" branch using a boolean supplier.
+         * Evaluates the supplier only if no earlier branch matched.
+         * A matching branch starts with the original input; a skipped branch retains this branch's result.
          *
          * @param booleanSupplier the supplier providing the condition
          * @return an {@link ElseIfBranch} instance to continue the conditional flow
+         * @throws NullPointerException if no earlier branch matched and booleanSupplier is null
          */
         public ElseIfBranch<I> elseIf(BooleanSupplier booleanSupplier) {
             return new ElseIfBranch<>(!hit && booleanSupplier.getAsBoolean(), getAsType());
         }
 
         /**
-         * Adds an "else if" branch using a predicate to evaluate the input.
+         * Tests the original input only if no earlier branch matched.
+         * A matching branch starts with that input; a skipped branch retains this branch's result.
          *
          * @param predicate the predicate that tests the input
          * @return an {@link ElseIfBranch} instance to continue the conditional flow
+         * @throws NullPointerException if no earlier branch matched and predicate is null
          */
         public ElseIfBranch<I> elseIf(Predicate<? super I> predicate) {
             return new ElseIfBranch<>(!hit && predicate.test(input), getAsType());
         }
 
         /**
-         * Adds an "else" branch to complete the conditional flow.
+         * Matches the original input if no earlier branch matched, otherwise retains this branch's result.
          *
          * @return an {@link ElseBranch} instance to finish the flow
          */
@@ -224,13 +243,10 @@ public final class Conditional<I> {
     private abstract class BaseBranch<O, B extends BaseBranch<O, B>> implements Branch<O> {
 
         /**
-         * The output produced by this branch.
+         * A skipped map can retain a value unrelated to its inferred callback type.
          */
         final O output;
 
-        /**
-         * Indicates if the current branch condition was met.
-         */
         final boolean branchHit;
 
         BaseBranch(boolean branchHit, O output) {
@@ -239,18 +255,41 @@ public final class Conditional<I> {
             this.output = output;
         }
 
+        /**
+         * Executes the action if this branch matched.
+         *
+         * @param runnable the action to execute
+         * @return this branch for chaining
+         * @throws NullPointerException if this branch matched and runnable is null
+         */
         @Override
         public B run(Runnable runnable) {
             if (branchHit) runnable.run();
             return self();
         }
 
+        /**
+         * Passes the stored value to the consumer if this branch matched.
+         *
+         * @param consumer the output processor
+         * @return this branch for chaining
+         * @throws NullPointerException if this branch matched and consumer is null
+         */
         @Override
         public B consume(Consumer<? super O> consumer) {
             if (branchHit) consumer.accept(output);
             return self();
         }
 
+        /**
+         * Creates and throws the supplied exception if this branch matched.
+         *
+         * @param supplier the supplier for the exception
+         * @param <X> the exception type
+         * @return this branch when it did not match
+         * @throws X the supplied exception if this branch matched
+         * @throws NullPointerException if this branch matched and supplier or its result is null
+         */
         @Override
         public <X extends Throwable> B throwIt(Supplier<? extends X> supplier) throws X {
             if (branchHit) throw supplier.get();
@@ -268,11 +307,6 @@ public final class Conditional<I> {
             return output;
         }
 
-        /**
-         * Returns the current branch instance itself, optimizing for type inference and performance.
-         *
-         * @return the current instance with inferred type
-         */
         B self() {
             return uncheckedCast(this);
         }
@@ -285,39 +319,22 @@ public final class Conditional<I> {
      */
     private interface Branch<O> extends MultiOutputSupplier<Object> {
 
-        /**
-         * Executes the specified action if the condition is met.
-         *
-         * @param runnable the action to execute
-         * @return this branch for chaining
-         */
         Branch<O> run(Runnable runnable);
 
-        /**
-         * Processes the output if the condition is met.
-         *
-         * @param consumer the output processor
-         * @return this branch for chaining
-         */
         Branch<O> consume(Consumer<? super O> consumer);
 
         /**
-         * Maps the output to a new value if the condition is met.
+         * Maps the output to a new, possibly null value if the condition is met.
+         * A successful mapping creates a new branch and leaves this branch's value intact.
+         * A skipped mapping preserves the stored value even when its type differs from {@code U}.
          *
          * @param function the mapping function
          * @param <U>      the new output type
-         * @return a new branch with the mapped output
+         * @return a new matching branch, or the same skipped branch
+         * @throws NullPointerException if this branch matched and function is null
          */
         <U> Branch<U> map(Function<? super O, ? extends U> function);
 
-        /**
-         * Throws an exception if the condition is met.
-         *
-         * @param supplier the supplier for the exception
-         * @param <X>      the exception type
-         * @return this branch for chaining
-         * @throws X the exception thrown if the condition is met
-         */
         <X extends Throwable> Branch<O> throwIt(Supplier<? extends X> supplier) throws X;
     }
 

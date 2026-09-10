@@ -16,8 +16,10 @@
 package io.allurx.kit.selenium;
 
 /**
- * Exception thrown when there is an issue related to browser operations.
- * Extends {@link RuntimeException} to provide unchecked exception handling.
+ * Unchecked failure reported by Kit's browser lifecycle API.
+ * {@link Chrome.ChromeBuilder#build()} wraps configuration, launch, and session construction failures
+ * in this type while preserving their causes. Operations invoked directly on the returned WebDriver
+ * and {@link Chrome#close()} retain their underlying exception types.
  *
  * @author allurx
  */

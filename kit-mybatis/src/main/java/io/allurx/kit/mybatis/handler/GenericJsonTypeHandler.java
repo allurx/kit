@@ -25,17 +25,25 @@ import tools.jackson.databind.jsontype.PolymorphicTypeValidator;
 import java.util.Objects;
 
 /**
- * Preserves polymorphic values using an explicit application-defined subtype policy.
+ * Stores polymorphic JSON using Jackson's {@link DefaultTyping#NON_FINAL} and an explicit
+ * application-defined subtype policy.
  * The validator must allow each permitted runtime type, including container implementations
  * when they require type information. Use the narrowest policy suitable for the stored models.
- * Each handler owns an immutable mapper derived from Jackson's default configuration.
- * Automatic type information uses Jackson's default wrapper-array representation.
+ * Each handler uses a rebuilt mapper, leaving the shared Jackson operator unchanged.
+ * Automatic type information uses Jackson's default wrapper-array representation and Java class names.
+ * Renaming classes, changing declared types, or changing the subtype policy can make existing
+ * database values unreadable; the handler does not migrate stored JSON.
  *
- * <p>Register an instance with {@link #registerTo(org.apache.ibatis.type.TypeHandlerRegistry)}, or define a subclass whose
- * {@link Class} constructor supplies the application's validator. No unrestricted
- * default validator is provided.</p>
+ * <p>The validator controls polymorphic subtype resolution when reading stored JSON; it is not
+ * application-level validation of the resulting values. Treat database content according to its
+ * source and restrict allowed types accordingly. A policy that accepts every subtype removes
+ * this restriction; no unrestricted default validator is provided.
  *
- * @param <T> The type of object returned by the mapper methods
+ * <p>Register an instance with {@link #registerTo(org.apache.ibatis.type.TypeHandlerRegistry)},
+ * or define a subclass whose {@link Class} constructor supplies the application's validator.
+ * The two-argument constructors cannot be used directly by MyBatis's class-only instantiation.
+ *
+ * @param <T> the declared Java value type
  * @author allurx
  */
 public class GenericJsonTypeHandler<T> extends AbstractJsonTypeHandler<T> {
@@ -43,8 +51,9 @@ public class GenericJsonTypeHandler<T> extends AbstractJsonTypeHandler<T> {
     /**
      * Creates a handler for a declared target class and its permitted runtime subtypes.
      *
-     * @param type The declared target class
-     * @param validator The explicit policy for allowed polymorphic subtypes
+     * @param type the non-null declared target class
+     * @param validator the non-null policy for allowed polymorphic subtypes
+     * @throws NullPointerException if either argument is null
      */
     public GenericJsonTypeHandler(Class<T> type, PolymorphicTypeValidator validator) {
         super(operator(validator), type);
@@ -53,8 +62,9 @@ public class GenericJsonTypeHandler<T> extends AbstractJsonTypeHandler<T> {
     /**
      * Creates a handler for a parameterized target type and its permitted runtime subtypes.
      *
-     * @param type The target type, including its generic arguments
-     * @param validator The explicit policy for allowed polymorphic subtypes
+     * @param type the non-null target type, including its generic arguments
+     * @param validator the non-null policy for allowed polymorphic subtypes
+     * @throws NullPointerException if either argument is null
      */
     public GenericJsonTypeHandler(TypeToken<T> type, PolymorphicTypeValidator validator) {
         super(operator(validator), type);

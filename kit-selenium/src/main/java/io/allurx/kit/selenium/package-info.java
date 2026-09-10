@@ -14,15 +14,11 @@
  * limitations under the License.
  */
 /**
- * JSON conversion and structural comparison backed by Jackson and Gson.
- * Backend classes and Kit type tokens are transitively readable because they appear in the public API.
- * Consumer model packages may need to be opened to the backend that accesses them reflectively.
+ * Chrome launch configuration and WebDriver session lifecycle management.
+ * {@link io.allurx.kit.selenium.Chrome.ChromeBuilder} creates sessions according to
+ * {@link io.allurx.kit.selenium.Mode}; each returned {@link io.allurx.kit.selenium.Chrome}
+ * owns its resources and should be closed with try-with-resources.
  *
  * @author allurx
  */
-module io.allurx.kit.json {
-    exports io.allurx.kit.json;
-    requires transitive io.allurx.kit.base;
-    requires transitive com.google.gson;
-    requires transitive tools.jackson.databind;
-}
+package io.allurx.kit.selenium;

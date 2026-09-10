@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 /**
- * MyBatis handler test module.
+ * Handler registration tests; the production module supplies the public API's transitive dependencies.
  *
  * @author allurx
  */

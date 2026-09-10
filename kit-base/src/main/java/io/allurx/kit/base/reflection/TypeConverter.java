@@ -31,10 +31,10 @@ public final class TypeConverter {
      * The caller must ensure type compatibility. An incompatible value may cause a
      * {@link ClassCastException} when the result is used.
      *
-     * @param a   the source object
+     * @param a   the source object, which may be null
      * @param <A> the source type
      * @param <B> the target type
-     * @return the same object as the target type
+     * @return the same object as the target type, or null if the source is null
      */
     @SuppressWarnings("unchecked")
     public static <A, B> B uncheckedCast(A a) {
