@@ -18,27 +18,21 @@ package io.allurx.kit.selenium;
 import org.openqa.selenium.WebDriver;
 
 /**
- * {@link WebDriver} communication modes with the browser.
- * <p>
- * This enum defines two modes of interaction:
- * </p>
- * <ul>
- *     <li>{@link #ATTACH} - Attaches ChromeDriver to a Chrome debugging address and controls that browser through W3C WebDriver.</li>
- *     <li>{@link #HOSTED} - Uses W3C WebDriver with Chrome's lifecycle managed by the driver.</li>
- * </ul>
+ * Defines who starts Chrome before it is controlled via {@link WebDriver}.
  *
  * @author allurx
  */
 public enum Mode {
 
     /**
-     * Attaches ChromeDriver to a Chrome debugging address and controls that browser through W3C WebDriver.
+     * Kit starts and owns the Chrome process; ChromeDriver connects to its debugging port.
+     *
+     * @see Chrome.ChromeBuilder#build()
      */
     ATTACH,
 
     /**
-     * Communicates with Chrome using W3C WebDriver.
-     * In this mode, the lifecycle of Chrome is entirely controlled by {@link WebDriver}.
+     * ChromeDriver starts Chrome and manages its lifecycle.
      */
     HOSTED
 }

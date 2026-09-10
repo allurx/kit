@@ -30,11 +30,9 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Represents a Chrome browser instance that can be controlled via WebDriver.
- * <p>
- * This class allows you to start and manage a Chrome browser instance, either by attaching to an
- * already running instance or by starting a new instance directly from WebDriver.
- * </p>
+ * Owns a Chrome browser and its WebDriver session.
+ * In {@link Mode#ATTACH}, Kit starts Chrome and connects ChromeDriver to its debugging port.
+ * In {@link Mode#HOSTED}, ChromeDriver starts and manages Chrome.
  *
  * @author allurx
  */
@@ -73,8 +71,7 @@ public final class Chrome implements AutoCloseable {
     }
 
     /**
-     * Closes the Chrome browser and terminates any running processes.
-     * This method ensures that both the {@link WebDriver} instance and the Chrome process are properly closed.
+     * Quits the owned WebDriver session and requests termination of the process started in ATTACH mode.
      */
     @Override
     public void close() {
@@ -168,9 +165,9 @@ public final class Chrome implements AutoCloseable {
         }
 
         /**
-         * Sets the communication mode between {@link WebDriver} and the browser.
+         * Selects whether Kit or ChromeDriver starts the browser.
          *
-         * @param mode the communication mode, one of {@link Mode}
+         * @param mode the browser startup mode
          * @return the current ChromeBuilder instance for chaining
          */
         public ChromeBuilder mode(Mode mode) {
@@ -228,8 +225,13 @@ public final class Chrome implements AutoCloseable {
          * Constructs and returns a {@link Chrome} instance based on the builder configuration.
          * Each successful call creates a separate session without changing the builder's configuration
          * or any previously returned instance. The caller owns and must close each returned instance.
+         * <p>For ATTACH with regular Chrome 136+, use {@link #addArgs(String...)} to supply
+         * {@code --user-data-dir=/path/to/dedicated-data}, pointing to a non-default directory.
+         * Chrome for Testing is exempt from this remote-debugging restriction.
+         * Concurrent ATTACH instances need different user data directories;
+         * {@code --profile-directory} only selects a profile within a user data directory.
          * <p>
-         * In {@link Mode#ATTACH} mode, waits up to three seconds for the debugging port to accept
+         * In {@link Mode#ATTACH} mode, starts Chrome and waits up to three seconds for the debugging port to accept
          * a connection before creating the WebDriver session. Output is drained in the background
          * and a bounded tail is included in startup failures. If the process exits, the port does
          * not become ready, or startup is interrupted, the process is terminated and a
@@ -241,6 +243,7 @@ public final class Chrome implements AutoCloseable {
          *
          * @return a new {@link Chrome} instance
          * @throws BrowserException if Chrome fails to start or an error occurs during construction
+         * @see <a href="https://developer.chrome.com/blog/remote-debugging-port">Chrome remote debugging requirements</a>
          */
         public Chrome build() {
             try {
@@ -249,23 +252,12 @@ public final class Chrome implements AutoCloseable {
                 return switch (mode) {
                     case ATTACH -> {
 
-                        // Start the Chrome process
                         int port = findAvailablePort();
                         var command = new ArrayList<>(arguments);
                         command.addFirst(chromePath);
                         command.add("--remote-debugging-port=" + port);
 
-                        // First, start Chrome so that WebDriver can later establish a connection with it.
-                        // Note: For the same Chrome startup commands with --user-data-dir or --profile-directory.
-                        // For example:
-                        // chrome --user-data-dir=path1 --remote-debugging-port=1
-                        // chrome --user-data-dir=path1 --remote-debugging-port=2
-                        // Even if two different port numbers are specified, only one Chrome process will be started,
-                        // and one of the ports will inevitably fail to bind. Subsequently, WebDriver will not be able to
-                        // establish a connection with Chrome.
-                        // Summary:
-                        // At any given time, there will be only one Chrome process with the same --user-data-dir or
-                        // --profile-directory due to the design of Chrome itself.
+                        // Reusing an active user data directory may prevent this launch from opening its debugging port.
                         var process = startProcess(new ProcessBuilder(command).redirectErrorStream(true));
                         ChromeStartup.await(process, port, Duration.ofSeconds(3));
 
