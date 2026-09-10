@@ -97,36 +97,14 @@ public abstract class TypeToken<T> {
     }
 
     /**
-     * Returns the raw {@link Class} represented by {@link #capturedType}.
-     * <ul>
-     * <li>If {@link T} is a non-generic {@link Class}, e.g., {@code String}, it returns the class itself.</li>
-     * <li>If {@link T} is a {@link ParameterizedType}, e.g., {@code List<String>}, it returns {@code List.class}.</li>
-     * <li>If {@link T} is a {@link TypeVariable}, e.g., {@code T}, return its first upper bound.</li>
-     * <li>If {@link T} is a {@link GenericArrayType}, e.g., {@code List<String>[]}, it returns {@code List[].class}.</li>
-     * <li>If {@link T} is a {@link WildcardType}, return the raw class of its first upper bound;
-     * the implicit upper bound is {@code Object} when no upper bound is explicitly declared.</li>
-     * </ul>
+     * Returns the raw class, resolving generic arrays through their component types.
+     * Type variables and wildcards use the raw class of their first upper bound.
+     * <p>Generic arguments are erased: {@code List<String>} yields {@code List.class}.
+     * {@link Class#cast(Object)} checks only this raw class, not generic arguments.
      *
-     * <p>This method helps avoid <b>unchecked</b> warnings from the compiler.</p>
-     * <pre>
-     *     {@code
-     *
-     *          // Some object
-     *          var o = ...
-     *
-     *          // The compiler will issue an Unchecked cast warning
-     *          @SuppressWarnings("unchecked")
-     *          List<String> list1 = (List<String>) o;
-     *
-     *          // To avoid the Unchecked cast warning, ensure that 'o' is indeed a List,
-     *          // otherwise, a ClassCastException will be thrown at runtime.
-     *          List<String> list2 = new TypeToken<List<String>>() {}.getRawClass().cast(o);
-     *     }
-     * </pre>
-     *
-     * @return The raw {@link Class} represented by {@link #capturedType}.
+     * @return the raw class, which may represent a supertype of {@code T}
      */
-    public final Class<T> getRawClass() {
+    public final Class<? super T> getRawClass() {
         var clazz = switch (capturedType) {
             case Class<?> c -> c;
             case ParameterizedType parameterizedType -> (Class<?>) parameterizedType.getRawType();
