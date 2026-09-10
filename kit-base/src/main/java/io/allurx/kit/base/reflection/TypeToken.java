@@ -21,6 +21,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.lang.reflect.WildcardType;
+import java.util.Objects;
 
 /**
  * Utility class for capturing and storing generic types.
@@ -64,9 +65,10 @@ public abstract class TypeToken<T> {
      * Constructs an {@code TypeToken} from a given {@link Type}.
      *
      * @param type the type
+     * @throws NullPointerException if type is null
      */
     protected TypeToken(Type type) {
-        this.capturedType = type;
+        this.capturedType = Objects.requireNonNull(type, "type");
     }
 
     /**
@@ -75,6 +77,7 @@ public abstract class TypeToken<T> {
      * @param type the class represented by the token
      * @param <T> the type represented by the class
      * @return a token bound to the supplied class's type
+     * @throws NullPointerException if type is null
      */
     public static <T> TypeToken<T> of(Class<T> type) {
         return new TypeToken<>(type) {
@@ -87,6 +90,7 @@ public abstract class TypeToken<T> {
      *
      * @param type the runtime type to capture
      * @return a token preserving the supplied type without claiming a specific compile-time type
+     * @throws NullPointerException if type is null
      */
     public static TypeToken<?> of(Type type) {
         return new TypeToken<>(type) {
