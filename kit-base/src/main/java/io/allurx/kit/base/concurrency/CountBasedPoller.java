@@ -78,16 +78,21 @@ public class CountBasedPoller extends BasePoller {
 
     /**
      * CountBasedPollerBuilder is used to build a {@link CountBasedPoller} which performs polling
-     * for a maximum number of iterations.
+     * for a maximum number of iterations. A positive count must be configured before building.
+     *
+     * @author allurx
      */
     public static class CountBasedPollerBuilder extends BasePollerBuilder<CountBasedPollerBuilder> {
 
         /**
-         * Default constructor
+         * Creates a builder with no polling count configured.
          */
         public CountBasedPollerBuilder() {
         }
 
+        /**
+         * The configured maximum count, or zero until {@link #count(int)} is called successfully.
+         */
         private int count;
 
         /**
@@ -111,8 +116,12 @@ public class CountBasedPoller extends BasePoller {
          * Builds and returns a new {@link CountBasedPoller} instance.
          *
          * @return a new CountBasedPoller instance
+         * @throws IllegalStateException if no positive count has been configured
          */
         public CountBasedPoller build() {
+            if (count <= 0) {
+                throw new IllegalStateException("A positive maximum polling count must be configured before building");
+            }
             return new CountBasedPoller(this);
         }
     }
