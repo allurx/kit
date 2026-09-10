@@ -53,6 +53,10 @@ import static io.allurx.kit.base.reflection.TypeConverter.uncheckedCast;
  * <p>Supports short-circuiting: once a condition is satisfied, subsequent conditions
  * and actions are skipped.
  *
+ * <p>Branch type parameters describe callback inputs when that branch executes.
+ * Results use {@link Object}: a skipped mapping can retain the original input or
+ * an earlier branch's result. {@code getAsType()} is an explicit unchecked cast.
+ *
  * <p><strong>Note:</strong> This class is not thread-safe. Ensure proper synchronization
  * if using in a concurrent environment.
  *
@@ -119,7 +123,7 @@ public final class Conditional<I> {
     /**
      * Represents the "if" branch of the conditional flow.
      *
-     * @param <O> the type of the output produced by this branch
+     * @param <O> the callback input type when this branch executes
      */
     public class IfBranch<O> extends DerivableBranch<O, IfBranch<O>> {
 
@@ -137,7 +141,7 @@ public final class Conditional<I> {
     /**
      * Represents an "else if" branch in the conditional flow.
      *
-     * @param <O> the type of the output produced by this branch
+     * @param <O> the callback input type when this branch executes
      */
     public class ElseIfBranch<O> extends DerivableBranch<O, ElseIfBranch<O>> {
 
@@ -155,7 +159,7 @@ public final class Conditional<I> {
     /**
      * Represents the "else" branch in the conditional flow.
      *
-     * @param <O> the type of the output produced by this branch
+     * @param <O> the callback input type when this branch executes
      */
     public class ElseBranch<O> extends BaseBranch<O, ElseBranch<O>> {
 
@@ -172,7 +176,7 @@ public final class Conditional<I> {
     /**
      * Base class for branches that can derive "else if" or "else" branches.
      *
-     * @param <O> the type of the output produced by this branch
+     * @param <O> the callback input type when this branch executes
      * @param <B> the type of derived branch
      */
     private abstract class DerivableBranch<O, B extends DerivableBranch<O, B>> extends BaseBranch<O, B> {
@@ -214,7 +218,7 @@ public final class Conditional<I> {
     /**
      * Base class for all conditional branches (if, else-if, else).
      *
-     * @param <O> the type of the output produced by this branch
+     * @param <O> the callback input type when this branch executes
      * @param <B> the type of this branch
      */
     private abstract class BaseBranch<O, B extends BaseBranch<O, B>> implements Branch<O> {
@@ -254,14 +258,13 @@ public final class Conditional<I> {
         }
 
         /**
-         * Returns the output of the current branch.
-         * <p>
-         * Use {@link #getAsType()} to specify the desired type when needed.
+         * Returns this branch's stored result, which may come from the original input or an earlier branch.
+         * Later mappings do not replace this stored result.
          *
          * @return the result of the current branch
          */
         @Override
-        public O get() {
+        public Object get() {
             return output;
         }
 
@@ -278,9 +281,9 @@ public final class Conditional<I> {
     /**
      * Defines operations that can be performed on a branch.
      *
-     * @param <O> the type of the output
+     * @param <O> the callback input type when this branch executes
      */
-    private interface Branch<O> extends MultiOutputSupplier<O> {
+    private interface Branch<O> extends MultiOutputSupplier<Object> {
 
         /**
          * Executes the specified action if the condition is met.
