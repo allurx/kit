@@ -28,10 +28,13 @@ import java.net.ServerSocket;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -54,23 +57,24 @@ public class ChromeStartupTest {
     }
 
     /**
-     * Verifies that a startup timeout terminates the child without waiting for its output to reach EOF.
+     * Verifies that a startup timeout terminates its process tree without affecting an unrelated process.
      *
      * @throws Exception if process setup, port allocation, or cleanup fails
      */
     @Test
     void timesOutWithoutWaitingForAnAliveProcessToCloseItsOutput() throws Exception {
         int port = availablePort();
-        var process = startProcess("idle", port);
-        try {
+        var unrelated = startProcess("idle", port);
+        try (var tree = startProcessTree()) {
             long started = System.nanoTime();
             assertThrows(BrowserStartupFailureException.class,
-                    () -> awaitStartup(process, port, Duration.ofMillis(500)));
+                    () -> awaitStartup(tree.root(), port, Duration.ofMillis(500)));
             assertTrue(Duration.ofNanos(System.nanoTime() - started).compareTo(Duration.ofSeconds(3)) < 0,
                     "Startup failure must not wait for the child process to close its output");
-            assertTrue(process.waitFor(3, TimeUnit.SECONDS), "Failed startup must terminate its child process");
+            tree.assertExited();
+            assertTrue(unrelated.isAlive(), "Cleanup must only affect the failed startup's process tree");
         } finally {
-            terminate(process);
+            terminate(unrelated);
         }
     }
 
@@ -141,35 +145,74 @@ public class ChromeStartupTest {
     @Test
     void respondsToInterruptionAndPreservesTheInterruptFlagAndCause() throws Exception {
         int port = availablePort();
-        var process = startProcess("idle", port);
-        var started = new CountDownLatch(1);
-        var failure = new AtomicReference<Throwable>();
-        var interrupted = new AtomicBoolean();
-        var worker = Thread.ofPlatform().daemon().unstarted(() -> {
-            started.countDown();
+        try (var tree = startProcessTree()) {
+            var started = new CountDownLatch(1);
+            var failure = new AtomicReference<Throwable>();
+            var interrupted = new AtomicBoolean();
+            var worker = Thread.ofPlatform().daemon().unstarted(() -> {
+                started.countDown();
+                try {
+                    awaitStartup(tree.root(), port, Duration.ofSeconds(10));
+                } catch (Throwable throwable) {
+                    failure.set(throwable);
+                } finally {
+                    interrupted.set(Thread.currentThread().isInterrupted());
+                }
+            });
             try {
-                awaitStartup(process, port, Duration.ofSeconds(10));
-            } catch (Throwable throwable) {
-                failure.set(throwable);
+                worker.start();
+                assertTrue(started.await(3, TimeUnit.SECONDS));
+                worker.interrupt();
+                worker.join(3_000);
+                assertFalse(worker.isAlive(), "Interrupted startup must return promptly");
+                var startupFailure = assertInstanceOf(BrowserStartupFailureException.class, failure.get());
+                assertInstanceOf(InterruptedException.class, startupFailure.getCause());
+                assertTrue(interrupted.get(), "Startup must preserve the caller's interrupt flag");
+                tree.assertExited();
             } finally {
-                interrupted.set(Thread.currentThread().isInterrupted());
+                worker.interrupt();
+                worker.join(3_000);
             }
-        });
-        try {
-            worker.start();
-            assertTrue(started.await(3, TimeUnit.SECONDS));
-            Thread.sleep(200);
-            worker.interrupt();
-            worker.join(3_000);
-            assertFalse(worker.isAlive(), "Interrupted startup must return promptly");
-            var startupFailure = assertInstanceOf(BrowserStartupFailureException.class, failure.get());
-            assertInstanceOf(InterruptedException.class, startupFailure.getCause());
-            assertTrue(interrupted.get(), "Startup must preserve the caller's interrupt flag");
-            assertTrue(process.waitFor(3, TimeUnit.SECONDS), "Interrupted startup must terminate its child process");
-        } finally {
-            worker.interrupt();
-            terminate(process);
-            worker.join(3_000);
+        }
+    }
+
+    @Test
+    void terminatesTheProcessTreeAfterDriverConstructionFailure() throws Exception {
+        try (var tree = startProcessTree()) {
+            var cause = new IllegalStateException("driver session creation failed");
+            var failure = new BrowserStartupFailureException("ChromeDriver construction failed");
+            failure.initCause(cause);
+
+            assertDoesNotThrow(() -> terminateAfterFailure(tree.root(), failure));
+
+            tree.assertExited();
+            assertEquals("ChromeDriver construction failed", failure.getMessage());
+            assertSame(cause, failure.getCause());
+            assertEquals(0, failure.getSuppressed().length);
+        }
+    }
+
+    @Test
+    void keepsTheProcessTreeAliveAfterSuccessfulStartup() throws Exception {
+        try (var tree = startProcessTree();
+             var socket = new ServerSocket(0, 50, InetAddress.getByName("127.0.0.1"))) {
+            awaitStartup(tree.root(), socket.getLocalPort(), Duration.ofSeconds(5));
+
+            assertTrue(tree.owned().stream().allMatch(ProcessHandle::isAlive),
+                    "Successful startup must keep its owned process tree alive");
+        }
+    }
+
+    @Test
+    void terminatesObservedDescendantsAfterTheRootExits() throws Exception {
+        try (var tree = startProcessTree()) {
+            var process = exitsAfterDescendantsObserved(tree.root());
+
+            var failure = assertThrows(BrowserStartupFailureException.class,
+                    () -> awaitStartup(process, availablePort(), Duration.ofSeconds(5)));
+
+            assertTrue(failure.getMessage().contains("Chrome exited with code"));
+            tree.assertExited();
         }
     }
 
@@ -306,6 +349,117 @@ public class ChromeStartupTest {
         }
     }
 
+    private static void terminateAfterFailure(Process process, Throwable failure) throws Exception {
+        var method = Class.forName("io.allurx.kit.selenium.ChromeStartup")
+                .getDeclaredMethod("terminate", Process.class, Throwable.class);
+        method.setAccessible(true);
+        method.invoke(null, process, failure);
+    }
+
+    private static Process exitsAfterDescendantsObserved(Process root) {
+        return new Process() {
+            @Override
+            public OutputStream getOutputStream() {
+                return root.getOutputStream();
+            }
+
+            @Override
+            public InputStream getInputStream() {
+                return root.getInputStream();
+            }
+
+            @Override
+            public InputStream getErrorStream() {
+                return root.getErrorStream();
+            }
+
+            @Override
+            public int waitFor() throws InterruptedException {
+                return root.waitFor();
+            }
+
+            @Override
+            public int exitValue() {
+                return root.exitValue();
+            }
+
+            @Override
+            public void destroy() {
+                root.destroy();
+            }
+
+            @Override
+            public Process destroyForcibly() {
+                root.destroyForcibly();
+                return this;
+            }
+
+            @Override
+            public ProcessHandle toHandle() {
+                return root.toHandle();
+            }
+
+            @Override
+            public Stream<ProcessHandle> descendants() {
+                try (var descendants = root.descendants()) {
+                    var snapshot = descendants.toList();
+                    // Once the root exits, only the retained snapshot can identify its reparented descendants.
+                    terminate(root);
+                    return snapshot.stream();
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    throw new AssertionError(exception);
+                }
+            }
+        };
+    }
+
+    private static ProcessTree startProcessTree() throws Exception {
+        var root = startProcess("tree", 2);
+        var owned = new ArrayList<ProcessHandle>();
+        owned.add(root.toHandle());
+        try {
+            var javaCommand = root.toHandle().info().command().orElseThrow();
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+            while (System.nanoTime() < deadline) {
+                try (var descendants = root.descendants()) {
+                    descendants.filter(handle -> !owned.contains(handle)).forEach(owned::add);
+                }
+                // Windows also attaches console hosts; readiness depends on the three Java nodes.
+                long javaProcesses = owned.stream()
+                        .filter(handle -> handle.info().command().filter(javaCommand::equals).isPresent()).count();
+                if (javaProcesses == 3 && owned.stream().allMatch(ProcessHandle::isAlive)) {
+                    return new ProcessTree(root, List.copyOf(owned));
+                }
+                Thread.sleep(10);
+            }
+            throw new AssertionError("The process fixture must start both child and grandchild before startup checks");
+        } catch (Throwable failure) {
+            try (var tree = new ProcessTree(root, owned)) {
+                throw failure;
+            }
+        }
+    }
+
+    private record ProcessTree(Process root, List<ProcessHandle> owned) implements AutoCloseable {
+        void assertExited() throws Exception {
+            for (var handle : owned) {
+                handle.onExit().get(3, TimeUnit.SECONDS);
+                assertFalse(handle.isAlive(), "Failed startup must terminate owned process " + handle.pid());
+            }
+        }
+
+        @Override
+        public void close() throws Exception {
+            for (var handle : owned.reversed()) {
+                if (handle.isAlive()) {
+                    handle.destroyForcibly();
+                }
+            }
+            assertExited();
+        }
+    }
+
     /**
      * Obtains an operating system assigned loopback port and releases the temporary reservation.
      *
@@ -321,20 +475,13 @@ public class ChromeStartupTest {
     /**
      * Launches {@link FakeChrome} with the current JDK and merges stderr into stdout as the production launcher does.
      *
-     * @param mode the child behavior: {@code idle}, {@code late}, {@code flood}, or {@code exit}
-     * @param port the loopback port used by the {@code late} mode
+     * @param mode the child behavior: {@code idle}, {@code late}, {@code flood}, {@code exit}, or {@code tree}
+     * @param port the loopback port used by {@code late}, or the descendant depth used by {@code tree}
      * @return the child process, which the caller must clean up
      * @throws Exception if the compiled test location cannot be resolved or the child process cannot be started
      */
     private static Process startProcess(String mode, int port) throws Exception {
-        Path javaExecutable = Path.of(System.getProperty("java.home"), "bin", "java");
-        if (!Files.isExecutable(javaExecutable)) {
-            javaExecutable = javaExecutable.resolveSibling("java.exe");
-        }
-        String classes = Path.of(FakeChrome.class.getProtectionDomain().getCodeSource().getLocation().toURI())
-                .toString();
-        return new ProcessBuilder(javaExecutable.toString(), "-cp", classes, FakeChrome.class.getName(),
-                mode, Integer.toString(port))
+        return FakeChrome.processBuilder(mode, port)
                 .redirectErrorStream(true)
                 .start();
     }
@@ -375,15 +522,23 @@ public class ChromeStartupTest {
          * <p>
          * {@code idle} keeps the process and its output open; {@code late} opens the loopback port after a delay;
          * {@code flood} writes large output without newlines and exits with code {@code 17};
-         * {@code exit} writes a diagnostic marker and exits with code {@code 7}.
+         * {@code exit} writes a diagnostic marker and exits with code {@code 7};
+         * {@code tree} creates the requested depth of descendants sharing its output pipes.
          * </p>
          *
-         * @param args the behavior mode followed by the loopback port, which is read only in {@code late} mode
+         * @param args the behavior mode followed by the loopback port or descendant depth
          * @throws Exception if the arguments are invalid, the socket cannot be opened or closed, or a wait is interrupted
          */
         public static void main(String[] args) throws Exception {
             switch (args[0]) {
                 case "idle" -> Thread.sleep(30_000);
+                case "tree" -> {
+                    int depth = Integer.parseInt(args[1]);
+                    if (depth > 0) {
+                        processBuilder("tree", depth - 1).inheritIO().start();
+                    }
+                    Thread.sleep(30_000);
+                }
                 case "late" -> {
                     Thread.sleep(400);
                     try (var socket = new ServerSocket(Integer.parseInt(args[1]), 50,
@@ -408,6 +563,17 @@ public class ChromeStartupTest {
                 }
                 default -> throw new IllegalArgumentException(args[0]);
             }
+        }
+
+        private static ProcessBuilder processBuilder(String mode, int argument) throws Exception {
+            Path javaExecutable = Path.of(System.getProperty("java.home"), "bin", "java");
+            if (!Files.isExecutable(javaExecutable)) {
+                javaExecutable = javaExecutable.resolveSibling("java.exe");
+            }
+            String classes = Path.of(FakeChrome.class.getProtectionDomain().getCodeSource().getLocation().toURI())
+                    .toString();
+            return new ProcessBuilder(javaExecutable.toString(), "-cp", classes, FakeChrome.class.getName(),
+                    mode, Integer.toString(argument));
         }
     }
 }

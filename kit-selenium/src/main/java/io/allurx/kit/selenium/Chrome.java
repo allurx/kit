@@ -234,11 +234,12 @@ public final class Chrome implements AutoCloseable {
          * In {@link Mode#ATTACH} mode, starts Chrome and waits up to three seconds for the debugging port to accept
          * a connection before creating the WebDriver session. Output is drained in the background
          * and a bounded tail is included in startup failures. If the process exits, the port does
-         * not become ready, or startup is interrupted, the process is terminated and a
+         * not become ready, or startup is interrupted, cleanup requests termination of the process
+         * and its observed descendants, with at most one second of exit waiting. A
          * {@link BrowserStartupFailureException} is preserved as the cause of the construction
          * exception. Interruption also preserves the calling thread's interrupt flag.
-         * If WebDriver session construction fails after the port is ready, the newly started
-         * process is terminated and its output pipe is closed, preserving the original cause.
+         * If WebDriver session construction fails after the port is ready, the same process-tree
+         * cleanup runs, preserving the original cause.
          * </p>
          *
          * @return a new {@link Chrome} instance
@@ -259,7 +260,7 @@ public final class Chrome implements AutoCloseable {
 
                         // Reusing an active user data directory may prevent this launch from opening its debugging port.
                         var process = startProcess(new ProcessBuilder(command).redirectErrorStream(true));
-                        ChromeStartup.await(process, port, Duration.ofSeconds(3));
+                        var descendants = ChromeStartup.await(process, port, Duration.ofSeconds(3));
 
                         try {
                             // Transfer process ownership only after the WebDriver session is established.
@@ -268,7 +269,7 @@ public final class Chrome implements AutoCloseable {
                             options.setExperimentalOption("debuggerAddress", "127.0.0.1:" + port);
                             yield new Chrome(new ChromeDriver(options), process);
                         } catch (Throwable failure) {
-                            ChromeStartup.terminate(process, failure);
+                            ChromeStartup.terminate(process, descendants, failure);
                             throw failure;
                         }
                     }

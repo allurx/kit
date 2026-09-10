@@ -22,6 +22,9 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.time.Duration;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -52,6 +55,8 @@ final class ChromeStartup {
      */
     private static final int OUTPUT_LIMIT = 8192;
 
+    private static final Duration TERMINATION_TIMEOUT = Duration.ofSeconds(1);
+
     /**
      * Prevents instantiation of this startup utility.
      */
@@ -62,25 +67,34 @@ final class ChromeStartup {
      * Waits until the debugging port accepts a connection while the process is still alive.
      * <p>
      * The caller must merge stderr into stdout before starting the process. A startup failure
-     * requests termination of that process and asynchronously closes its output pipe without
-     * waiting for EOF. Interruption is preserved on the calling thread and recorded as the cause
-     * of the startup exception. A successful return leaves the process and output reader running.
+     * requests termination of that process and its observed descendants, with at most one second
+     * of exit waiting. Its output pipe is closed asynchronously without waiting for EOF.
+     * Interruption is preserved on the calling thread and recorded as the cause of the startup
+     * exception. A successful return leaves the process and output reader running.
      * </p>
      *
      * @param process the already started process owned by the caller, with merged stderr and stdout
      * @param port the local debugging port to probe
      * @param timeout the positive startup timeout, representable in nanoseconds
+     * @return descendants observed during startup, retained for cleanup if session construction fails
      * @throws BrowserStartupFailureException if the process exits, the port does not become ready
      *                                       within the timeout, or the calling thread is interrupted
      */
-    static void await(Process process, int port, Duration timeout) {
+    static Set<ProcessHandle> await(Process process, int port, Duration timeout) {
         long started = System.nanoTime();
         long timeoutNanos = timeout.toNanos();
+        var descendants = new HashSet<ProcessHandle>();
         var output = new Output();
         // Keep draining after startup as well: a full pipe can block the browser later.
         var reader = Thread.ofVirtual().name("kit-chrome-output").start(() -> output.read(process));
         try {
             while (true) {
+                if (process.isAlive()) {
+                    // Keep handles even if a launcher exits and its children lose their parent association.
+                    try (var current = process.descendants()) {
+                        current.forEach(descendants::add);
+                    }
+                }
                 if (Thread.currentThread().isInterrupted()) {
                     throw new InterruptedException("Chrome startup interrupted");
                 }
@@ -98,7 +112,7 @@ final class ChromeStartup {
                         throw new InterruptedException("Chrome startup interrupted");
                     }
                     if (System.nanoTime() - started < timeoutNanos && process.isAlive()) {
-                        return;
+                        return Set.copyOf(descendants);
                     }
                 }
                 remaining = timeoutNanos - (System.nanoTime() - started);
@@ -110,10 +124,10 @@ final class ChromeStartup {
             Thread.currentThread().interrupt();
             var failure = output.failure("Chrome startup interrupted");
             failure.initCause(e);
-            terminate(process, failure);
+            terminate(process, descendants, failure);
             throw failure;
-        } catch (BrowserStartupFailureException e) {
-            terminate(process, e);
+        } catch (RuntimeException e) {
+            terminate(process, descendants, e);
             throw e;
         }
     }
@@ -142,21 +156,49 @@ final class ChromeStartup {
     }
 
     /**
-     * Requests termination after startup or WebDriver session construction fails and closes the output pipe asynchronously.
-     * <p>
-     * Output closure is kept off the startup thread because descendants may still hold the pipe.
-     * Process termination errors are attached to the original failure instead of replacing it;
-     * asynchronous output closure errors are logged.
-     * </p>
+     * Terminates a failed construction's process and descendants still associated with it.
      *
      * @param process the process created by the failed construction attempt
      * @param failure the original construction failure to receive suppressed termination errors
      */
     static void terminate(Process process, Throwable failure) {
+        terminate(process, Set.of(), failure);
+    }
+
+    /**
+     * Retains observed descendants across parent exit, then snapshots the remaining tree before killing the root.
+     * Cleanup waits at most one second for exit, preserves interruption, and suppresses errors onto the original failure.
+     * Process snapshots cannot capture children that detach before observation or appear after enumeration.
+     */
+    static void terminate(Process process, Set<ProcessHandle> observed, Throwable failure) {
+        var descendants = new HashSet<>(observed);
         try {
-            process.destroyForcibly();
-        } catch (RuntimeException e) {
-            failure.addSuppressed(e);
+            try (var current = process.descendants()) {
+                current.forEach(descendants::add);
+            } catch (RuntimeException e) {
+                suppress(failure, e);
+            }
+            // Known children may have acquired descendants since the last startup probe.
+            for (var descendant : List.copyOf(descendants)) {
+                try (var current = descendant.descendants()) {
+                    current.forEach(descendants::add);
+                } catch (RuntimeException e) {
+                    suppress(failure, e);
+                }
+            }
+            try {
+                process.destroyForcibly();
+            } catch (RuntimeException e) {
+                suppress(failure, e);
+            }
+            for (var descendant : descendants) {
+                try {
+                    descendant.destroyForcibly();
+                } catch (RuntimeException e) {
+                    suppress(failure, e);
+                }
+            }
+            awaitTermination(process, descendants, failure);
         } finally {
             // Descendants may keep the pipe open. Closing it must not delay startup failure.
             Thread.ofVirtual().name("kit-chrome-output-close").start(() -> {
@@ -166,6 +208,42 @@ final class ChromeStartup {
                     LOGGER.warn("Unable to close Chrome process output", e);
                 }
             });
+        }
+    }
+
+    private static void awaitTermination(Process process, Set<ProcessHandle> descendants, Throwable failure) {
+        long started = System.nanoTime();
+        boolean interrupted = Thread.interrupted();
+        try {
+            while (true) {
+                descendants.removeIf(descendant -> !descendant.isAlive());
+                if (!process.isAlive() && descendants.isEmpty()) {
+                    return;
+                }
+                long remaining = TERMINATION_TIMEOUT.toNanos() - (System.nanoTime() - started);
+                if (remaining <= 0) {
+                    failure.addSuppressed(new IllegalStateException(
+                            "Chrome process tree did not exit within " + TERMINATION_TIMEOUT));
+                    return;
+                }
+                try {
+                    TimeUnit.NANOSECONDS.sleep(Math.min(remaining, POLL_INTERVAL_NANOS));
+                } catch (InterruptedException e) {
+                    interrupted = true;
+                }
+            }
+        } catch (RuntimeException e) {
+            suppress(failure, e);
+        } finally {
+            if (interrupted) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
+
+    private static void suppress(Throwable failure, RuntimeException error) {
+        if (error != failure) {
+            failure.addSuppressed(error);
         }
     }
 
