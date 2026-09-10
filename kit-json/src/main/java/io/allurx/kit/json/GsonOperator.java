@@ -88,38 +88,24 @@ public class GsonOperator extends AbstractJsonOperator<Gson> {
     }
 
     /**
-     * Compares JSON values structurally, using exact numeric equality.
-     * Each parsed input uses this operator's Gson configuration, including its strictness setting.
-     * An input must contain a JSON value; empty or blank input is rejected, while JSON null is valid.
-     * Object field order is ignored, while array order is preserved.
-     * Equivalent numeric representations such as {@code 1}, {@code 1.0}, and {@code 1e0} compare equal.
-     * Numeric comparison is limited to values supported by {@link BigDecimal#BigDecimal(String)}.
+     * {@inheritDoc}
+     * <p>Uses this Gson's parsing settings and exact numeric equality:
+     * {@code 1}, {@code 1.0}, and {@code 1e0} compare equal.
      *
-     * @param jsons the JSON strings to compare; must contain at least one element
-     * @return whether all JSON strings represent equivalent values
-     * @throws IllegalArgumentException if no JSON strings are supplied
-     * @throws NullPointerException if the array or a JSON string being parsed is null
-     * @throws JsonSyntaxException if a parsed input has no JSON value, is invalid under the current
-     *                             configuration, or contains additional JSON values
-     * @throws NumberFormatException if a number encountered during numeric comparison cannot be represented as a {@code BigDecimal}
+     * @throws NullPointerException if the array or a parsed input is null
+     * @throws JsonSyntaxException if a parsed input is empty, invalid, or contains extra JSON values
+     * @throws NumberFormatException if a compared number exceeds {@link BigDecimal}'s range
      */
     @Override
     public boolean compare(String... jsons) {
-        if (jsons.length == 0) {
-            throw new IllegalArgumentException("At least one JSON string is required");
-        }
-        JsonElement first = readTree(jsons[0]);
-        return IntStream.range(1, jsons.length).allMatch(i -> equivalent(first, readTree(jsons[i])));
+        return compare(jsons, this::readTree, GsonOperator::equivalent);
     }
 
     /**
-     * Parses one JSON value with this operator's Gson configuration.
-     * Gson returns Java null for empty input, which is distinct from a parsed JSON null value.
+     * Parses a JSON value, rejecting empty input while allowing JSON null.
      *
      * @param json the JSON string to parse
      * @return the parsed JSON value
-     * @throws NullPointerException if json is null
-     * @throws JsonSyntaxException if no JSON value is present or parsing fails
      */
     private JsonElement readTree(String json) {
         JsonElement value = subject.fromJson(Objects.requireNonNull(json, "json"), JsonElement.class);

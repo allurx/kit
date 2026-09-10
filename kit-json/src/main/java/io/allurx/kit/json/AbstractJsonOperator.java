@@ -19,9 +19,12 @@ package io.allurx.kit.json;
 import io.allurx.kit.base.reflection.TypeToken;
 
 import java.util.Objects;
+import java.util.function.BiPredicate;
+import java.util.function.Function;
+import java.util.stream.IntStream;
 
 /**
- * Holds a JSON backend and implements the class-based convenience operations.
+ * Shares backend access, typed conversions, and comparison flow.
  *
  * @param <J> the backend type
  * @author allurx
@@ -55,5 +58,23 @@ public abstract class AbstractJsonOperator<J> implements JsonOperator<J> {
     @Override
     public <T> T copyProperties(Object source, Class<T> type) {
         return copyProperties(source, TypeToken.of(type));
+    }
+
+    /**
+     * Parses each input once, stopping at the first mismatch.
+     *
+     * @param jsons the JSON strings to compare
+     * @param parser parses a JSON value
+     * @param equality compares two parsed values
+     * @param <N> the parsed value type
+     * @return whether all values are equivalent
+     * @throws IllegalArgumentException if no JSON strings are supplied
+     */
+    protected final <N> boolean compare(String[] jsons, Function<String, N> parser, BiPredicate<N, N> equality) {
+        if (jsons.length == 0) {
+            throw new IllegalArgumentException("At least one JSON string is required");
+        }
+        N first = parser.apply(jsons[0]);
+        return IntStream.range(1, jsons.length).allMatch(i -> equality.test(first, parser.apply(jsons[i])));
     }
 }

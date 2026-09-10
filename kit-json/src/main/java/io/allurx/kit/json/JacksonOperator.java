@@ -19,12 +19,13 @@ package io.allurx.kit.json;
 import io.allurx.kit.base.reflection.TypeToken;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectReader;
+import tools.jackson.databind.cfg.JsonNodeFeature;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.lang.reflect.Type;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
-import java.util.stream.IntStream;
 
 /**
  * JSON operations using the Jackson library.
@@ -34,12 +35,20 @@ import java.util.stream.IntStream;
 public class JacksonOperator extends AbstractJsonOperator<JsonMapper> {
 
     /**
+     * Reads exact, normalized decimals for comparison without changing the backend.
+     */
+    private final ObjectReader comparisonReader;
+
+    /**
      * Constructor.
      *
      * @param jsonMapper An instance of {@link JsonMapper}
      */
     public JacksonOperator(JsonMapper jsonMapper) {
         super(jsonMapper);
+        comparisonReader = jsonMapper.reader().withFeatures(
+                JsonNodeFeature.USE_BIG_DECIMAL_FOR_FLOATS,
+                JsonNodeFeature.STRIP_TRAILING_BIGDECIMAL_ZEROES);
     }
 
     @Override
@@ -106,24 +115,28 @@ public class JacksonOperator extends AbstractJsonOperator<JsonMapper> {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>Compares exact decimal values after stripping trailing zeros; signed decimal zeros compare equal.
+     * Integer and decimal nodes remain distinct. Other parsing settings follow this mapper.
+     *
+     * @throws JsonException if Jackson reports a parsing error
+     * @throws NumberFormatException if a decimal exceeds {@code BigDecimal}'s range
+     */
     @Override
     public boolean compare(String... jsons) {
-        if (jsons.length == 0) {
-            throw new IllegalArgumentException("At least one JSON string is required");
-        }
-        JsonNode first = readTree(jsons[0]);
-        return IntStream.range(1, jsons.length).allMatch(i -> first.equals(readTree(jsons[i])));
+        return compare(jsons, this::readTree, JsonNode::equals);
     }
 
     /**
-     * Parses a JSON string into a JSON tree.
+     * Parses a tree using the comparison reader.
      *
      * @param json The JSON string to parse
      * @return The resulting JSON tree
      */
     private JsonNode readTree(String json) {
         try {
-            return subject.readTree(json);
+            return comparisonReader.readTree(json);
         } catch (JacksonException e) {
             throw new JsonException(e.getMessage(), e);
         }
