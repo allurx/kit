@@ -31,7 +31,7 @@ import java.util.Objects;
  * Each handler owns an immutable mapper derived from Jackson's default configuration.
  * Automatic type information uses Jackson's default wrapper-array representation.
  *
- * <p>Register an instance with MyBatis programmatically, or define a subclass whose
+ * <p>Register an instance with {@link #registerTo(org.apache.ibatis.type.TypeHandlerRegistry)}, or define a subclass whose
  * {@link Class} constructor supplies the application's validator. No unrestricted
  * default validator is provided.</p>
  *

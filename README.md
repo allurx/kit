@@ -31,6 +31,10 @@ MyBatis JSON handlers serialize and deserialize using the declared target type.
 `SimpleJsonTypeHandler` uses Jackson's default configuration without adding automatic type metadata.
 `GenericJsonTypeHandler` retains polymorphic type information in wrapper arrays and requires an explicit
 `PolymorphicTypeValidator`; register a configured instance or a subclass that supplies the validator.
+For configured instances, use `handler.registerTo(configuration.getTypeHandlerRegistry())` to bind the
+constructor's target type. MyBatis's `registry.register(handler)` cannot infer constructor-supplied types.
+Parameterized targets register under their raw class (for example, `List.class`); the full `TypeToken`
+still controls JSON conversion. Different element types sharing the same raw class need dedicated property mappings.
 
 ## License
 

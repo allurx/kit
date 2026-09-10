@@ -20,6 +20,7 @@ import io.allurx.kit.base.reflection.TypeToken;
 import io.allurx.kit.json.JsonOperation;
 import org.apache.ibatis.type.BaseTypeHandler;
 import org.apache.ibatis.type.JdbcType;
+import org.apache.ibatis.type.TypeHandlerRegistry;
 
 import java.sql.CallableStatement;
 import java.sql.PreparedStatement;
@@ -64,6 +65,17 @@ public abstract class AbstractJsonTypeHandler<T> extends BaseTypeHandler<T> {
     protected AbstractJsonTypeHandler(JsonOperation jsonOperation, TypeToken<T> type) {
         this.jsonOperation = Objects.requireNonNull(jsonOperation, "jsonOperation");
         this.type = Objects.requireNonNull(type, "type");
+    }
+
+    /**
+     * Registers this instance using the constructor's target type instead of MyBatis's generic-type inference.
+     * Use this method instead of {@code registry.register(handler)} for programmatic registration.
+     * Parameterized targets register under their raw class; generic arguments remain available for JSON operations.
+     *
+     * @param registry the registry to receive this handler
+     */
+    public final void registerTo(TypeHandlerRegistry registry) {
+        registry.register(type.getRawClass(), this);
     }
 
     @Override

@@ -25,6 +25,7 @@ import io.allurx.kit.json.JsonOperator;
  * Use {@link GenericJsonTypeHandler} with an explicit subtype policy to preserve runtime subtypes.
  * The {@link Class} constructor supports MyBatis type-handler registration;
  * a {@link TypeToken} can retain generic arguments for programmatic registration or a dedicated subclass.
+ * Register configured instances with {@link #registerTo(org.apache.ibatis.type.TypeHandlerRegistry)}.
  *
  * @param <T> The type of object returned by the mapper methods
  * @author allurx
