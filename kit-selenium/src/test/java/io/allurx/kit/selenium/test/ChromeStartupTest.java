@@ -33,10 +33,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Verifies bounded Chrome startup waiting, process output handling, and failure cleanup.
@@ -203,19 +200,22 @@ public class ChromeStartupTest {
                 closed.countDown();
             }
         };
-        var process = exitedProcess(output);
-        try {
-            long started = System.nanoTime();
-            assertThrows(BrowserStartupFailureException.class,
-                    () -> awaitStartup(process, 0, Duration.ofSeconds(3)));
-            assertTrue(Duration.ofNanos(System.nanoTime() - started).compareTo(Duration.ofSeconds(3)) < 0,
-                    "Startup failure must not wait for output close to finish");
-            assertTrue(readStarted.await(3, TimeUnit.SECONDS), "The diagnostic reader must have started");
-            assertTrue(closeStarted.await(3, TimeUnit.SECONDS), "Failed startup must close its output pipe");
-            assertTrue(closed.getCount() == 1, "The stream must still be waiting for the test to release close");
+        try (output) {
+            try {
+                var process = exitedProcess(output);
+                long started = System.nanoTime();
+                assertThrows(BrowserStartupFailureException.class,
+                        () -> awaitStartup(process, 0, Duration.ofSeconds(3)));
+                assertTrue(Duration.ofNanos(System.nanoTime() - started).compareTo(Duration.ofSeconds(3)) < 0,
+                        "Startup failure must not wait for output close to finish");
+                assertTrue(readStarted.await(3, TimeUnit.SECONDS), "The diagnostic reader must have started");
+                assertTrue(closeStarted.await(3, TimeUnit.SECONDS), "Failed startup must close its output pipe");
+                assertEquals(1, closed.getCount(), "The stream must still be waiting for the test to release close");
+            } finally {
+                // Release the controlled close before automatic resource cleanup starts.
+                allowClose.countDown();
+            }
         } finally {
-            allowClose.countDown();
-            output.close();
             assertTrue(closed.await(3, TimeUnit.SECONDS));
         }
     }
