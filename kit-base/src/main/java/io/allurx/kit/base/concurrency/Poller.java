@@ -17,6 +17,7 @@ package io.allurx.kit.base.concurrency;
 
 import io.allurx.kit.base.function.MultiOutputSupplier;
 
+import java.util.Objects;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -46,11 +47,15 @@ public interface Poller {
 
     /**
      * Polls the specified {@link Runnable} until the {@link BooleanSupplier} returns {@code true}.
+     * Both arguments are validated before polling starts or either callback executes.
      *
      * @param runnable        the operation to execute during each polling iteration
      * @param booleanSupplier the condition used to terminate the polling; polling stops when {@code true} is returned
+     * @throws NullPointerException if runnable or booleanSupplier is null
      */
     default void poll(Runnable runnable, BooleanSupplier booleanSupplier) {
+        Objects.requireNonNull(runnable, "The Runnable cannot be null");
+        Objects.requireNonNull(booleanSupplier, "The BooleanSupplier cannot be null");
         poll(() -> null, unused -> {
             runnable.run();
             return null;
