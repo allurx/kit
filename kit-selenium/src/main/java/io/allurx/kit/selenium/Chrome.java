@@ -24,10 +24,10 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 /**
  * Represents a Chrome browser instance that can be controlled via WebDriver.
@@ -43,41 +43,25 @@ public final class Chrome implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(Chrome.class);
 
     /**
-     * Default Chrome startup arguments.
-     *
-     * @see <a href="https://peter.sh/experiments/chromium-command-line-switches/">chromium-command-line-switches</a>
+     * The WebDriver session owned by this instance.
      */
-    private final List<String> defaultArgs = Arrays.stream(new String[]{
-            "--no-first-run",
-            "--start-maximized",
-            "--disable-extensions",
-            "--disable-gpu",
-            "--disable-software-rasterizer",
-            "--disable-background-networking",
-            "--disable-sync",
-            "--disable-translate",
-            "--disable-renderer-backgrounding",
-            "--disable-client-side-phishing-detection",
-            "--disable-hang-monitor",
-            "--disable-audio-output",
-            "--disable-accelerated-2d-canvas",
-            "--enable-low-end-device-mode",
-            "--enable-simple-cache-backend",
-            "--disable-quic",
-            "--disable-infobars",
-            "--disable-session-crashed-bubble",
-            "--disable-speech-api",
-            "--disable-save-password-bubble",
-            "--disable-notifications",
-    }).collect(Collectors.toList());
+    private final WebDriver webDriver;
 
-    private Chrome() {
+    /**
+     * The process started in ATTACH mode, or null when WebDriver manages the browser in HOSTED mode.
+     */
+    private final Process process;
+
+    /**
+     * Takes ownership of the resources created by one successful build.
+     *
+     * @param webDriver the established WebDriver session
+     * @param process the process started in ATTACH mode, or null in HOSTED mode
+     */
+    private Chrome(WebDriver webDriver, Process process) {
+        this.webDriver = webDriver;
+        this.process = process;
     }
-
-    private Mode mode;
-    private String chromePath;
-    private WebDriver webDriver;
-    private Process process;
 
     /**
      * Returns the {@link WebDriver} instance controlling the Chrome browser.
@@ -107,26 +91,58 @@ public final class Chrome implements AutoCloseable {
      * @return a new {@link ChromeBuilder}
      */
     public static ChromeBuilder builder() {
-        return new ChromeBuilder(new Chrome());
+        return new ChromeBuilder();
     }
 
     /**
      * A builder class for constructing a {@link Chrome} instance.
      * <p>
      * This builder allows configuration of Chrome startup parameters, communication modes, and more.
+     * It can be reused to create independent browser instances. Each instance must be closed separately.
+     * Configuration is mutable, so a builder must not be used concurrently without external synchronization.
      * </p>
+     *
+     * @author allurx
      */
     public static class ChromeBuilder {
 
-        private final Chrome chrome;
+        private Mode mode;
+        private String chromePath;
 
         /**
-         * Constructs a new {@code ChromeBuilder} with the specified {@link Chrome} instance.
+         * Browser arguments for future builds. Executable paths and generated debugging ports are added
+         * only to the command for an individual attempt so failures and retries cannot change this list.
          *
-         * @param chrome the {@link Chrome} instance to be used by this builder
+         * @see <a href="https://peter.sh/experiments/chromium-command-line-switches/">chromium-command-line-switches</a>
          */
-        public ChromeBuilder(Chrome chrome) {
-            this.chrome = chrome;
+        private final List<String> arguments = new ArrayList<>(List.of(
+                "--no-first-run",
+                "--start-maximized",
+                "--disable-extensions",
+                "--disable-gpu",
+                "--disable-software-rasterizer",
+                "--disable-background-networking",
+                "--disable-sync",
+                "--disable-translate",
+                "--disable-renderer-backgrounding",
+                "--disable-client-side-phishing-detection",
+                "--disable-hang-monitor",
+                "--disable-audio-output",
+                "--disable-accelerated-2d-canvas",
+                "--enable-low-end-device-mode",
+                "--enable-simple-cache-backend",
+                "--disable-quic",
+                "--disable-infobars",
+                "--disable-session-crashed-bubble",
+                "--disable-speech-api",
+                "--disable-save-password-bubble",
+                "--disable-notifications"
+        ));
+
+        /**
+         * Creates an independent builder with the default browser arguments.
+         */
+        public ChromeBuilder() {
         }
 
         /**
@@ -136,7 +152,7 @@ public final class Chrome implements AutoCloseable {
          * @return the current ChromeBuilder instance for chaining
          */
         public ChromeBuilder addArgs(String... args) {
-            chrome.defaultArgs.addAll(Arrays.asList(args));
+            arguments.addAll(Arrays.asList(args));
             return this;
         }
 
@@ -147,7 +163,7 @@ public final class Chrome implements AutoCloseable {
          * @return the current ChromeBuilder instance for chaining
          */
         public ChromeBuilder removeArgs(String... args) {
-            chrome.defaultArgs.removeAll(Arrays.asList(args));
+            arguments.removeAll(Arrays.asList(args));
             return this;
         }
 
@@ -158,7 +174,7 @@ public final class Chrome implements AutoCloseable {
          * @return the current ChromeBuilder instance for chaining
          */
         public ChromeBuilder mode(Mode mode) {
-            chrome.mode = mode;
+            this.mode = mode;
             return this;
         }
 
@@ -169,7 +185,7 @@ public final class Chrome implements AutoCloseable {
          * @return the current ChromeBuilder instance for chaining
          */
         public ChromeBuilder chromePath(String chromePath) {
-            chrome.chromePath = chromePath;
+            this.chromePath = chromePath;
             return this;
         }
 
@@ -210,6 +226,8 @@ public final class Chrome implements AutoCloseable {
 
         /**
          * Constructs and returns a {@link Chrome} instance based on the builder configuration.
+         * Each successful call creates a separate session without changing the builder's configuration
+         * or any previously returned instance. The caller owns and must close each returned instance.
          * <p>
          * In {@link Mode#ATTACH} mode, waits up to three seconds for the debugging port to accept
          * a connection before creating the WebDriver session. Output is drained in the background
@@ -226,15 +244,16 @@ public final class Chrome implements AutoCloseable {
          */
         public Chrome build() {
             try {
-                Optional.ofNullable(chrome.mode).orElseThrow(() -> new IllegalStateException("Chrome mode not set"));
-                Optional.ofNullable(chrome.chromePath).orElseThrow(() -> new IllegalStateException("Chrome Path not set"));
-                switch (chrome.mode) {
+                Optional.ofNullable(mode).orElseThrow(() -> new IllegalStateException("Chrome mode not set"));
+                Optional.ofNullable(chromePath).orElseThrow(() -> new IllegalStateException("Chrome Path not set"));
+                return switch (mode) {
                     case ATTACH -> {
 
                         // Start the Chrome process
                         int port = findAvailablePort();
-                        chrome.defaultArgs.addFirst(chrome.chromePath);
-                        chrome.defaultArgs.add("--remote-debugging-port=" + port);
+                        var command = new ArrayList<>(arguments);
+                        command.addFirst(chromePath);
+                        command.add("--remote-debugging-port=" + port);
 
                         // First, start Chrome so that WebDriver can later establish a connection with it.
                         // Note: For the same Chrome startup commands with --user-data-dir or --profile-directory.
@@ -247,16 +266,15 @@ public final class Chrome implements AutoCloseable {
                         // Summary:
                         // At any given time, there will be only one Chrome process with the same --user-data-dir or
                         // --profile-directory due to the design of Chrome itself.
-                        var process = startProcess(new ProcessBuilder(chrome.defaultArgs).redirectErrorStream(true));
+                        var process = startProcess(new ProcessBuilder(command).redirectErrorStream(true));
                         ChromeStartup.await(process, port, Duration.ofSeconds(3));
 
                         try {
                             // Transfer process ownership only after the WebDriver session is established.
                             var options = new ChromeOptions();
-                            options.setBinary(chrome.chromePath);
+                            options.setBinary(chromePath);
                             options.setExperimentalOption("debuggerAddress", "127.0.0.1:" + port);
-                            chrome.webDriver = new ChromeDriver(options);
-                            chrome.process = process;
+                            yield new Chrome(new ChromeDriver(options), process);
                         } catch (Throwable failure) {
                             ChromeStartup.terminate(process, failure);
                             throw failure;
@@ -264,15 +282,14 @@ public final class Chrome implements AutoCloseable {
                     }
                     case HOSTED -> {
                         var options = new ChromeOptions()
-                                .setBinary(chrome.chromePath)
-                                .addArguments(chrome.defaultArgs);
-                        chrome.webDriver = new ChromeDriver(options);
+                                .setBinary(chromePath)
+                                .addArguments(arguments);
+                        yield new Chrome(new ChromeDriver(options), null);
                     }
-                }
+                };
             } catch (Throwable t) {
                 throw new BrowserException("Chrome construction failed", t);
             }
-            return chrome;
         }
     }
 }
