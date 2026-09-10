@@ -24,17 +24,9 @@ import java.lang.reflect.WildcardType;
 import java.util.Objects;
 
 /**
- * Utility class for capturing and storing generic types.
- * <p>
- * In Java, generic types are erased at runtime due to type erasure. To access generic types at runtime,
- * an anonymous subclass of {@code TypeToken} can be created to capture the generic type at compile time
- * and retain it at runtime.
- * </p>
- * <pre>
- *    {@code
- *      new TypeToken<List<String>>() {}.getType() => java.util.List<java.lang.String>
- *    }
- * </pre>
+ * Captures a declared type through a direct subclass, or stores an explicit type.
+ * Type variables are preserved without resolving call-site type arguments.
+ * <pre>{@code new TypeToken<List<String>>() {}.getType()}</pre>
  *
  * @param <T> The generic type to be captured
  * @author allurx
@@ -47,22 +39,20 @@ import java.util.Objects;
  */
 public abstract class TypeToken<T> {
 
-    /**
-     * The generic type {@link T} captured at compile time for runtime access.
-     */
     private final Type capturedType;
 
     /**
-     * When an anonymous subclass is created, if the parent class constructor is not explicitly called,
-     * the no-argument constructor is automatically invoked. Through {@link Class#getGenericSuperclass()},
-     * the generic type of {@code T} can be retrieved at compile time.
+     * Captures the type argument of a direct {@code TypeToken} or {@link AnnotatedTypeToken} subclass.
+     * Other inheritance structures must use {@link #TypeToken(Type)}.
+     *
+     * @throws IllegalArgumentException if the runtime class is not a direct, parameterized subclass
      */
     protected TypeToken() {
         this.capturedType = capture();
     }
 
     /**
-     * Constructs an {@code TypeToken} from a given {@link Type}.
+     * Stores an explicit type without inspecting the subclass hierarchy.
      *
      * @param type the type
      * @throws NullPointerException if type is null
@@ -98,7 +88,7 @@ public abstract class TypeToken<T> {
     }
 
     /**
-     * Retrieves the generic type {@link T} captured at compile time.
+     * Returns the captured or explicitly supplied type.
      *
      * @return The generic type {@link T}.
      */
@@ -183,18 +173,16 @@ public abstract class TypeToken<T> {
         return "TypeToken{capturedType=%s}".formatted(capturedType);
     }
 
-    /**
-     * Captures the generic type at compile time via an anonymous subclass.
-     *
-     * @return The generic type {@link T}.
-     */
     private Type capture() {
-        Class<?> clazz = getClass();
-        Type superclass = clazz.getGenericSuperclass();
-        if (!(superclass instanceof ParameterizedType)) {
-            throw new IllegalArgumentException("%s must be a parameterized type".formatted(superclass));
+        Type superclass = getClass().getGenericSuperclass();
+        if (!(superclass instanceof ParameterizedType parameterizedType)
+                || (parameterizedType.getRawType() != TypeToken.class
+                && parameterizedType.getRawType() != AnnotatedTypeToken.class)) {
+            throw new IllegalArgumentException(
+                    "%s must directly extend TypeToken<T> or AnnotatedTypeToken<T>, or pass an explicit type"
+                            .formatted(getClass().getName()));
         }
-        return ((ParameterizedType) superclass).getActualTypeArguments()[0];
+        return parameterizedType.getActualTypeArguments()[0];
     }
 
 }
