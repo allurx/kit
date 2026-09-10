@@ -15,8 +15,6 @@
  */
 package io.allurx.kit.base.concurrency;
 
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -40,7 +38,7 @@ public abstract class BasePoller implements Poller {
     protected final System.Logger logger;
 
     /**
-     * Exception types ignored when retrieving or converting polling input.
+     * Immutable snapshot of exception types ignored when retrieving or converting polling input.
      * Exceptions from the termination predicate are not ignored.
      */
     protected final List<Class<? extends Throwable>> ignoredExceptions;
@@ -48,13 +46,15 @@ public abstract class BasePoller implements Poller {
     /**
      * Constructs a BasePoller with the provided list of ignored exceptions and a logger.
      * If no logger or exceptions are provided, defaults are used.
+     * The exception list is copied so later changes by the caller cannot affect this poller.
      *
      * @param ignoredExceptions the list of exceptions to ignore during polling
      * @param logger            the logger used to log events during polling
+     * @throws NullPointerException if the exception list contains a null element
      */
     protected BasePoller(List<Class<? extends Throwable>> ignoredExceptions, System.Logger logger) {
         this.logger = Optional.ofNullable(logger).orElse(System.getLogger(getClass().getName()));
-        this.ignoredExceptions = Optional.ofNullable(ignoredExceptions).orElse(new ArrayList<>());
+        this.ignoredExceptions = ignoredExceptions == null ? List.of() : List.copyOf(ignoredExceptions);
     }
 
     /**
@@ -97,6 +97,7 @@ public abstract class BasePoller implements Poller {
      * It allows configuration of exceptions to ignore and custom logging.
      *
      * @param <B> the builder type, allowing method chaining in subclasses
+     * @author allurx
      */
     public static abstract class BasePollerBuilder<B extends BasePollerBuilder<B>> {
 
@@ -118,28 +119,32 @@ public abstract class BasePoller implements Poller {
 
         /**
          * Sets exception types to ignore when retrieving or converting polling input.
+         * Copies the array so subsequent changes to it do not affect this builder or its pollers.
          * An ignored failure produces null for the termination predicate, which must handle that value.
          * Exceptions thrown by the predicate are always propagated.
          *
          * @param ignoredExceptions the array of exception classes to ignore
          * @return the builder instance for chaining
+         * @throws NullPointerException if the array or any of its elements is null
          */
         @SafeVarargs
         public final B ignoreExceptions(Class<? extends Throwable>... ignoredExceptions) {
-            this.ignoredExceptions = Arrays.stream(Objects.requireNonNull(ignoredExceptions, "The Array of ignored exceptions cannot be null")).toList();
+            this.ignoredExceptions = List.of(Objects.requireNonNull(ignoredExceptions, "The Array of ignored exceptions cannot be null"));
             return uncheckedCast(this);
         }
 
         /**
          * Sets exception types to ignore when retrieving or converting polling input.
+         * Copies the list so subsequent changes to it do not affect this builder or its pollers.
          * An ignored failure produces null for the termination predicate, which must handle that value.
          * Exceptions thrown by the predicate are always propagated.
          *
          * @param ignoredExceptions the list of exception classes to ignore
          * @return the builder instance for chaining
+         * @throws NullPointerException if the list or any of its elements is null
          */
         public B ignoreExceptions(List<Class<? extends Throwable>> ignoredExceptions) {
-            this.ignoredExceptions = Objects.requireNonNull(ignoredExceptions, "The List of Ignore Exceptions cannot be null");
+            this.ignoredExceptions = List.copyOf(Objects.requireNonNull(ignoredExceptions, "The List of Ignore Exceptions cannot be null"));
             return uncheckedCast(this);
         }
 
