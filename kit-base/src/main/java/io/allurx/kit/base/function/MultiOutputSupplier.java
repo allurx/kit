@@ -60,13 +60,11 @@ public interface MultiOutputSupplier<T> extends Supplier<T> {
     }
 
     /**
-     * Casts the result to a specific type.
-     * <p>
-     * Note: This method uses unchecked casting and should be used with caution. It can also assist in type inference by the compiler.
+     * Evaluates this supplier once and returns its result with an
+     * {@linkplain TypeConverter#uncheckedCast(Object) unchecked cast}.
      *
-     * @param <R> the type to cast the result to
-     * @return the result cast to the specified type
-     * @throws ClassCastException if the result cannot be cast to the specified type
+     * @param <R> the target type
+     * @return the supplied result as the target type
      */
     default <R> R getAsType() {
         return TypeConverter.uncheckedCast(get());
