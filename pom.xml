@@ -20,6 +20,7 @@
 
     <properties>
         <gson.version>2.14.0</gson.version>
+        <guava.version>33.6.0-jre</guava.version>
         <jackson-bom.version>3.2.2</jackson-bom.version>
         <jetbrains.annotations.version>26.1.0</jetbrains.annotations.version>
         <jmh-core.version>1.37</jmh-core.version>
@@ -131,6 +132,11 @@
             </dependency>
 
             <!-- selenium -->
+            <dependency>
+                <groupId>com.google.guava</groupId>
+                <artifactId>guava</artifactId>
+                <version>${guava.version}</version>
+            </dependency>
             <dependency>
                 <groupId>org.seleniumhq.selenium</groupId>
                 <artifactId>selenium-java</artifactId>

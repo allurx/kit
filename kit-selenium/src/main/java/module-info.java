@@ -23,5 +23,7 @@ module io.allurx.kit.selenium {
     requires org.slf4j;
     requires transitive org.seleniumhq.selenium.api;
     requires org.seleniumhq.selenium.chrome_driver;
+    // Selenium's HTTP response handling uses Guava at runtime despite its static module requirement.
+    requires com.google.common;
     requires io.allurx.kit.base;
 }
