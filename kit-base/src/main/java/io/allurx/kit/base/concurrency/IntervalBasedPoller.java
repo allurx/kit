@@ -116,6 +116,8 @@ public class IntervalBasedPoller extends BasePoller {
     /**
      * IntervalBasedPollerBuilder is used to build a {@link IntervalBasedPoller}, which polls
      * at regular intervals for a specified duration.
+     *
+     * @author allurx
      */
     public static class IntervalBasedPollerBuilder extends BasePollerBuilder<IntervalBasedPollerBuilder> {
 
@@ -132,10 +134,13 @@ public class IntervalBasedPoller extends BasePoller {
 
         /**
          * Configures the polling to use the system clock, with the specified duration and interval.
+         * Both durations may be zero. Invalid arguments leave the current timing configuration unchanged.
          *
-         * @param duration the total time to continue polling
-         * @param interval the time between polling attempts
+         * @param duration the non-negative total time to continue polling
+         * @param interval the non-negative time between polling attempts
          * @return the builder instance for chaining
+         * @throws NullPointerException if duration or interval is null
+         * @throws IllegalArgumentException if duration or interval is negative
          */
         public IntervalBasedPollerBuilder timing(Duration duration, Duration interval) {
             return timing(Clock.systemDefaultZone(), duration, interval);
@@ -143,16 +148,28 @@ public class IntervalBasedPoller extends BasePoller {
 
         /**
          * Configures the polling to use a custom clock, with the specified duration and interval.
+         * Both durations may be zero. Invalid arguments leave the current timing configuration unchanged.
          *
          * @param clock    the clock to use for timing
-         * @param duration the total time to continue polling
-         * @param interval the time between polling attempts
+         * @param duration the non-negative total time to continue polling
+         * @param interval the non-negative time between polling attempts
          * @return the builder instance for chaining
+         * @throws NullPointerException if clock, duration, or interval is null
+         * @throws IllegalArgumentException if duration or interval is negative
          */
         public IntervalBasedPollerBuilder timing(Clock clock, Duration duration, Duration interval) {
-            this.clock = Objects.requireNonNull(clock, "The clock must not be null");
-            this.duration = Objects.requireNonNull(duration, "The duration must not be null");
-            this.interval = Objects.requireNonNull(interval, "The interval must not be null");
+            Objects.requireNonNull(clock, "The clock must not be null");
+            Objects.requireNonNull(duration, "The duration must not be null");
+            Objects.requireNonNull(interval, "The interval must not be null");
+            if (duration.isNegative()) {
+                throw new IllegalArgumentException("The duration must not be negative");
+            }
+            if (interval.isNegative()) {
+                throw new IllegalArgumentException("The interval must not be negative");
+            }
+            this.clock = clock;
+            this.duration = duration;
+            this.interval = interval;
             return this;
         }
 
