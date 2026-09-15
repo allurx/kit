@@ -34,7 +34,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 /**
- * Verifies registration by constructor-supplied target types and retention of generic element types.
+ * Verifies registration by constructor-supplied target types. MyBatis reduces lookup tokens to raw classes,
+ * while registered handlers retain generic element types for JSON reads.
  * JDBC results are proxies supplying JSON text; these tests do not exercise a database or driver.
  *
  * @author allurx
@@ -81,7 +82,6 @@ class JsonTypeHandlerRegistrationTest {
         handler.registerTo(registry);
 
         assertSame(handler, registry.getTypeHandler(List.class));
-        // MyBatis erases the lookup token to List; the registered handler retains Person for JSON reads.
         var registered = registry.getTypeHandler(new TypeReference<List<Person>>() {});
         assertSame(handler, registered);
         assertEquals(List.of(new Person("Alice")),
@@ -98,7 +98,6 @@ class JsonTypeHandlerRegistrationTest {
         handler.registerTo(registry);
 
         assertSame(handler, registry.getTypeHandler(List.class));
-        // MyBatis erases the lookup token to List; the registered handler retains Person for JSON reads.
         var registered = registry.getTypeHandler(new TypeReference<List<Person>>() {});
         assertSame(handler, registered);
         // NON_FINAL includes the declared List container; the final Person record needs no automatic type id.
