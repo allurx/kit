@@ -4,7 +4,7 @@
 
     <groupId>io.allurx.kit</groupId>
     <artifactId>kit</artifactId>
-    <version>3.0.0</version>
+    <version>3.0.1</version>
     <packaging>pom</packaging>
     <name>kit</name>
 
@@ -20,7 +20,7 @@
 
     <properties>
         <gson.version>2.14.0</gson.version>
-        <guava.version>33.6.0-jre</guava.version>
+        <guava.version>33.7.1-jre</guava.version>
         <jackson-bom.version>3.2.2</jackson-bom.version>
         <jetbrains.annotations.version>26.1.0</jetbrains.annotations.version>
         <jmh.version>1.37</jmh.version>
@@ -29,10 +29,10 @@
         <maven-central-publishing-plugin.version>0.11.0</maven-central-publishing-plugin.version>
         <maven-clean-plugin.version>3.5.0</maven-clean-plugin.version>
         <maven-compiler-plugin.version>3.16.0</maven-compiler-plugin.version>
-        <maven-deploy-plugin.version>3.1.4</maven-deploy-plugin.version>
+        <maven-deploy-plugin.version>3.2.0</maven-deploy-plugin.version>
         <maven-gpg-plugin.version>3.2.8</maven-gpg-plugin.version>
         <maven-help-plugin.version>3.5.2</maven-help-plugin.version>
-        <maven-install-plugin.version>3.1.4</maven-install-plugin.version>
+        <maven-install-plugin.version>3.2.0</maven-install-plugin.version>
         <maven-jar-plugin.version>3.5.1</maven-jar-plugin.version>
         <maven-javadoc-plugin.version>3.12.0</maven-javadoc-plugin.version>
         <maven-resources-plugin.version>3.5.0</maven-resources-plugin.version>
@@ -41,8 +41,8 @@
         <maven.compiler.release>25</maven.compiler.release>
         <mybatis.version>3.5.19</mybatis.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <selenium-java.version>4.48.0</selenium-java.version>
-        <slf4j-api.version>2.0.18</slf4j-api.version>
+        <selenium-java.version>4.49.0</selenium-java.version>
+        <slf4j-api.version>2.0.19</slf4j-api.version>
     </properties>
 
     <licenses>
