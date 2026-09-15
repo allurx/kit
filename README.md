@@ -2,24 +2,17 @@
 
 Java 25+ utilities with explicit JPMS modules.
 
-| Artifact | Purpose |
-| --- | --- |
-| `kit-base` | Conditional chains, polling, functional helpers, and generic type tokens; no runtime dependencies |
-| `kit-json` | Jackson and Gson serialization, conversion, and structural comparison |
-| `kit-mybatis` | MyBatis JSON type handlers with declared and polymorphic types |
-| `kit-selenium` | Chrome startup and WebDriver lifecycle management |
+| Artifact | Purpose | Versions |
+| --- | --- | --- |
+| `kit-base` | Conditional chains, polling, functional helpers, and generic type tokens; no runtime dependencies | [Maven Central](https://central.sonatype.com/artifact/io.allurx.kit/kit-base) |
+| `kit-json` | Jackson and Gson serialization, conversion, and structural comparison | [Maven Central](https://central.sonatype.com/artifact/io.allurx.kit/kit-json) |
+| `kit-mybatis` | MyBatis JSON type handlers with declared and polymorphic types | [Maven Central](https://central.sonatype.com/artifact/io.allurx.kit/kit-mybatis) |
+| `kit-selenium` | Chrome startup and WebDriver lifecycle management | [Maven Central](https://central.sonatype.com/artifact/io.allurx.kit/kit-selenium) |
 
 ## Installation
 
-Choose an artifact and set `kit.version` to the release version you use:
-
-```xml
-<dependency>
-    <groupId>io.allurx.kit</groupId>
-    <artifactId>kit-base</artifactId>
-    <version>${kit.version}</version>
-</dependency>
-```
+Open an artifact's Maven Central link above to find the latest published version
+and copy the Maven dependency declaration for the version you want to use.
 
 ## Usage notes
 
@@ -36,8 +29,13 @@ Choose an artifact and set `kit.version` to the release version you use:
 - **Chrome:** Close each instance with try-with-resources. ATTACH launches a Kit-owned browser;
   use a dedicated user data directory. See [Chrome](kit-selenium/src/main/java/io/allurx/kit/selenium/Chrome.java).
 
-Build with Maven running on JDK 25+. Core verification: `mvn -pl kit-mybatis -am verify`.
-For browser tests, read [kit-selenium/AGENTS.md](kit-selenium/AGENTS.md).
+## Building
+
+Use Maven 3.9.x and JDK 25+ to run `mvn verify` from the repository root.
+Run `mvn install` when other local projects need the updated Kit artifacts.
+The real Chrome startup test is opt-in; read [kit-selenium/AGENTS.md](kit-selenium/AGENTS.md)
+before browser tests. See [CI and releases](docs/ci-cd.md) for native IDEA Maven actions,
+automatic verification, and release setup and recovery.
 
 ## License
 

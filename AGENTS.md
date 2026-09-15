@@ -15,5 +15,7 @@
 - JMH 与 JUnit 独立；普通测试通过不能作为性能证据。
 
 ## 发布
-- 普通验证不启用 release profile；该 profile 另行生成 sources / Javadoc 并在 verify 阶段签名。发布相关变更须核验这些实际产物。
-- Central 上传、校验和公开发布分别核实；以 pom.xml 中发布插件配置及最终可下载组件为准，不能只凭 deploy 成功判断公开发布完成。
+- 执行发布前读取 [CI/CD 与发布流程](docs/ci-cd.md#release)。用户明确要求发布指定版本时，按该流程完成本次发布所需的版本修改、验证、提交与推送、合入 main、创建并推送 tag 和结果核实；范围明确时不逐步重复确认。
+- 创建并推送正式 tag 前，由执行发布的 Agent 主动查询最终 main 发布提交 SHA 对应的 CI，等待其成功；缺少结果、运行中或未成功均不能视为通过，也不能用其他提交的成功结果代替。发布提交发生变化后重新核对；该检查由发布执行者负责，当前 CD 不查询此前的 CI 结果。
+- 普通 CI 可使用 `-Prelease -Dgpg.skip=true` 执行到 `verify`，验证 sources / Javadoc 等发布产物；该命令不签名、不上传。正式发布启用 release profile，不跳过签名；发布相关变更须核验这些实际产物。
+- Central 上传、校验和公开发布分别核实；以 pom.xml 中发布插件配置及最终可下载组件为准，不能只凭 deploy 成功判断公开发布完成。确认 Central 制品可公开下载且 GitHub Release 已创建后，再报告发布完成，并提供版本、commit、tag 和发布链接。
