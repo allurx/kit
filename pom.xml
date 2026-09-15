@@ -42,7 +42,7 @@
         <mybatis.version>3.5.19</mybatis.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <selenium-java.version>4.49.0</selenium-java.version>
-        <slf4j-api.version>2.0.18</slf4j-api.version>
+        <slf4j-api.version>2.0.19</slf4j-api.version>
     </properties>
 
     <licenses>
