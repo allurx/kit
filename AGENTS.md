@@ -17,6 +17,7 @@
 ## 分支与合并
 - 短期功能、修复和依赖更新分支合入 `dev` 时使用 `Squash and merge`，每个 PR 保持一个完整意图。
 - `dev` 与 `main` 是长期分支；`dev → main` 的发布 PR 使用 `Create a merge commit`，保留共同祖先，避免后续发布 PR 重复包含已压缩的提交。执行合并前核对 PR 的 base/head，并显式选择对应方式，不依赖 GitHub 默认选项。
+- 发布验证完成后，将已验证的 `main` 发布提交同步回 `dev`：已包含时无需合并，可快进时使用 fast-forward，已分叉时使用普通 merge，保留 `dev` 的后续改动；不用 Squash。`dev` 更新后推送并核对 CI，具体步骤见发布文档。
 
 ## 发布
 - 执行发布前读取 [CI/CD 与发布流程](docs/ci-cd.md#release)。用户明确要求发布指定版本时，按该流程完成本次发布所需的版本修改、验证、提交与推送、合入 main、创建并推送 tag 和结果核实；范围明确时不逐步重复确认。

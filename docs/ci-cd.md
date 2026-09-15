@@ -42,10 +42,11 @@ or database compatibility. See [the workflow](../.github/workflows/ci.yml) for t
 `dev` and `main` are long-lived branches. Use the merge policy recorded in
 [AGENTS.md](../AGENTS.md#分支与合并):
 
-| Pull request | Merge method |
+| Integration | Merge method |
 | --- | --- |
 | Short-lived feature, fix or dependency-update branch → `dev` | **Squash and merge**; keep one logical change per PR |
 | Release from `dev` → `main` | **Create a merge commit**; preserve shared ancestry between releases |
+| Synchronize the verified `main` release commit → `dev` | Fast-forward when possible; use a normal merge commit if the branches have diverged; do nothing if already included |
 
 Squashing a long-lived branch can make later PRs include already-squashed commits
 and repeat conflicts. See [GitHub's guidance on long-running branches](https://docs.github.com/en/pull-requests/reference/pull-request-merges#squashing-and-merging-a-long-running-branch).
@@ -108,7 +109,12 @@ include the workflow files in the release commit.
 6. Follow both release jobs through completion. Confirm that the public Central
    artifact checks pass and the GitHub Release exists. Review the generated notes
    against this release's changes, correct unrelated history, and add migration
-   guidance for breaking changes before reporting the version, commit SHA, tag and
+   guidance for breaking changes.
+7. Update local `dev` from `origin/dev` with `git pull --ff-only`, then synchronize
+   the verified `main` release commit into it. If already included, no merge is
+   needed. Otherwise, fast-forward when possible or use a normal merge commit to
+   preserve subsequent work on `dev`; do not squash. If `dev` advances, push it and
+   wait for its CI to pass. Then report the version, release commit SHA, tag and
    release links.
 
 The person or agent performing the release owns step 4. Git tag operations and the
@@ -119,7 +125,8 @@ performs its own build and tests after the tag is pushed.
 
 A request such as “帮我把当前工程发布为 vX.Y.Z” authorizes the necessary version
 updates, verification, commits, pushes, integration into `main`, tag creation and
-push, and publication checks for that release. The agent follows the shared
+push, publication checks, and synchronization of the verified release commit back
+into `dev`. The agent follows the shared
 procedure, queries and waits for CI itself, and completes the authorized steps
 without requesting confirmation for each one. If the version or release scope is
 materially unclear, establish it before the dependent actions.
