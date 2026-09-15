@@ -14,8 +14,12 @@
 - 修改轮询行为时，使用已有 Clock / Sleeper 注入点验证次数、截止与异常边界；修改反射泛型 API 时，同时验证外部调用的编译类型和运行行为。
 - JMH 与 JUnit 独立；普通测试通过不能作为性能证据。
 
+## 分支与合并
+- 短期功能、修复和依赖更新分支合入 `dev` 时使用 `Squash and merge`，每个 PR 保持一个完整意图。
+- `dev` 与 `main` 是长期分支；`dev → main` 的发布 PR 使用 `Create a merge commit`，保留共同祖先，避免后续发布 PR 重复包含已压缩的提交。执行合并前核对 PR 的 base/head，并显式选择对应方式，不依赖 GitHub 默认选项。
+
 ## 发布
 - 执行发布前读取 [CI/CD 与发布流程](docs/ci-cd.md#release)。用户明确要求发布指定版本时，按该流程完成本次发布所需的版本修改、验证、提交与推送、合入 main、创建并推送 tag 和结果核实；范围明确时不逐步重复确认。
 - 创建并推送正式 tag 前，由执行发布的 Agent 主动查询最终 main 发布提交 SHA 对应的 CI，等待其成功；缺少结果、运行中或未成功均不能视为通过，也不能用其他提交的成功结果代替。发布提交发生变化后重新核对；该检查由发布执行者负责，当前 CD 不查询此前的 CI 结果。
 - 普通 CI 可使用 `-Prelease -Dgpg.skip=true` 执行到 `verify`，验证 sources / Javadoc 等发布产物；该命令不签名、不上传。正式发布启用 release profile，不跳过签名；发布相关变更须核验这些实际产物。
-- Central 上传、校验和公开发布分别核实；以 pom.xml 中发布插件配置及最终可下载组件为准，不能只凭 deploy 成功判断公开发布完成。确认 Central 制品可公开下载且 GitHub Release 已创建后，再报告发布完成，并提供版本、commit、tag 和发布链接。
+- Central 上传、校验和公开发布分别核实；以 pom.xml 中发布插件配置及最终可下载组件为准，不能只凭 deploy 成功判断公开发布完成。确认 Central 制品可公开下载且 GitHub Release 已创建，审核发布说明的变更范围并补齐破坏性变更的迁移要点后，再报告发布完成，并提供版本、commit、tag 和发布链接。
