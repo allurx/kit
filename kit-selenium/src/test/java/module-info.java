@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 /**
- * Selenium tests with controlled startup fixtures and an opt-in real Chrome ATTACH test.
- * The POM opens the production package specifically to this test module for startup-helper reflection.
+ * Opt-in Chrome startup test using the public API.
  *
  * @author allurx
  */

@@ -18,16 +18,14 @@ package io.allurx.kit.selenium;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * Owns a WebDriver session and, in {@link Mode#ATTACH}, the Chrome process started by Kit.
@@ -37,8 +35,6 @@ import java.util.Optional;
  * @author allurx
  */
 public final class Chrome implements AutoCloseable {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(Chrome.class);
 
     private final WebDriver webDriver;
 
@@ -75,15 +71,30 @@ public final class Chrome implements AutoCloseable {
      * enumerate descendants or wait for process exit; failed-startup cleanup has a separate, bounded wait.
      * <p>
      * Cleanup exceptions propagate without a {@link BrowserException} wrapper. If both operations fail,
-     * the exception from process termination replaces the exception from quitting the session.
+     * the first failure is thrown and the second is added as a suppressed exception.
      * </p>
      */
     @Override
     public void close() {
+        Throwable failure = null;
         try {
-            Optional.ofNullable(webDriver).ifPresent(WebDriver::quit);
+            webDriver.quit();
+        } catch (RuntimeException | Error e) {
+            failure = e;
+            throw e;
         } finally {
-            Optional.ofNullable(process).ifPresent(Process::destroy);
+            if (process != null) {
+                try {
+                    process.destroy();
+                } catch (RuntimeException | Error e) {
+                    if (failure == null) {
+                        throw e;
+                    }
+                    if (e != failure) {
+                        failure.addSuppressed(e);
+                    }
+                }
+            }
         }
     }
 
@@ -195,37 +206,6 @@ public final class Chrome implements AutoCloseable {
         }
 
         /**
-         * Obtains an operating system assigned port for ATTACH debugging and releases its reservation.
-         * The returned port is only a candidate: another process can claim it before Chrome binds it.
-         *
-         * @return a port available when the temporary socket was opened
-         * @throws RuntimeException if the temporary socket cannot be opened or closed
-         */
-        private int findAvailablePort() {
-            try (ServerSocket serverSocket = new ServerSocket(0)) {
-                return serverSocket.getLocalPort();
-            } catch (IOException e) {
-                LOGGER.error(e.getMessage(), e);
-                throw new RuntimeException(e);
-            }
-        }
-
-        /**
-         * Starts the configured Chrome process, retaining an I/O failure as the unchecked cause.
-         *
-         * @param processBuilder the {@link ProcessBuilder} to use
-         * @return the started {@link Process}
-         * @throws RuntimeException if the process cannot be started
-         */
-        private Process startProcess(ProcessBuilder processBuilder) {
-            try {
-                return processBuilder.start();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }
-
-        /**
          * Starts Chrome and creates a WebDriver session using the current configuration.
          * Both mode and executable path are required. Each successful call creates a separately owned
          * session without changing the builder configuration; the caller must close the returned instance.
@@ -257,44 +237,62 @@ public final class Chrome implements AutoCloseable {
          * @return a new {@link Chrome} instance
          * @throws BrowserException if required configuration is missing, Chrome fails to start, or session
          *                          construction fails; the original failure is retained as the cause
+         * @throws Error if an unrecoverable error occurs; it propagates without wrapping
          * @see <a href="https://developer.chrome.com/blog/remote-debugging-port">Chrome remote debugging requirements</a>
          */
         public Chrome build() {
             try {
-                Optional.ofNullable(mode).orElseThrow(() -> new IllegalStateException("Chrome mode not set"));
-                Optional.ofNullable(chromePath).orElseThrow(() -> new IllegalStateException("Chrome Path not set"));
+                validateConfiguration();
                 return switch (mode) {
-                    case ATTACH -> {
-
-                        int port = findAvailablePort();
-                        var command = new ArrayList<>(arguments);
-                        command.addFirst(chromePath);
-                        command.add("--remote-debugging-port=" + port);
-
-                        // Reusing an active user data directory may prevent this launch from opening its debugging port.
-                        var process = startProcess(new ProcessBuilder(command).redirectErrorStream(true));
-                        var descendants = ChromeStartup.await(process, port, Duration.ofSeconds(3));
-
-                        try {
-                            // Transfer process ownership only after the WebDriver session is established.
-                            var options = new ChromeOptions();
-                            options.setBinary(chromePath);
-                            options.setExperimentalOption("debuggerAddress", "127.0.0.1:" + port);
-                            yield new Chrome(new ChromeDriver(options), process);
-                        } catch (Throwable failure) {
-                            ChromeStartup.terminate(process, descendants, failure);
-                            throw failure;
-                        }
-                    }
-                    case HOSTED -> {
-                        var options = new ChromeOptions()
-                                .setBinary(chromePath)
-                                .addArguments(arguments);
-                        yield new Chrome(new ChromeDriver(options), null);
-                    }
+                    case ATTACH -> buildAttached();
+                    case HOSTED -> buildHosted();
                 };
-            } catch (Throwable t) {
-                throw new BrowserException("Chrome construction failed", t);
+            } catch (IOException | RuntimeException failure) {
+                throw new BrowserException("Chrome construction failed", failure);
+            }
+        }
+
+        private void validateConfiguration() {
+            if (mode == null) {
+                throw new IllegalStateException("Chrome mode not set");
+            }
+            if (chromePath == null) {
+                throw new IllegalStateException("Chrome Path not set");
+            }
+        }
+
+        private Chrome buildAttached() throws IOException {
+            int port = findAvailablePort();
+            var command = new ArrayList<>(arguments);
+            command.addFirst(chromePath);
+            command.add("--remote-debugging-port=" + port);
+
+            var descendants = new HashSet<ProcessHandle>();
+            var process = new ProcessBuilder(command).redirectErrorStream(true).start();
+            try {
+                ChromeStartup.await(process, port, Duration.ofSeconds(3), descendants);
+                var options = new ChromeOptions();
+                options.setBinary(chromePath);
+                options.setExperimentalOption("debuggerAddress", "127.0.0.1:" + port);
+                // Ownership transfers only after the complete startup and driver construction succeed.
+                return new Chrome(new ChromeDriver(options), process);
+            } catch (RuntimeException | Error failure) {
+                ChromeStartup.terminate(process, descendants, failure);
+                throw failure;
+            }
+        }
+
+        private Chrome buildHosted() {
+            var options = new ChromeOptions()
+                    .setBinary(chromePath)
+                    .addArguments(arguments);
+            return new Chrome(new ChromeDriver(options), null);
+        }
+
+        // Releasing this reservation leaves a race before Chrome binds the candidate port.
+        private int findAvailablePort() throws IOException {
+            try (var socket = new ServerSocket(0)) {
+                return socket.getLocalPort();
             }
         }
     }

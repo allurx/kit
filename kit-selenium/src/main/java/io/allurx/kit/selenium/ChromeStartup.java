@@ -64,26 +64,25 @@ final class ChromeStartup {
      * Waits until the loopback debugging port accepts a TCP connection while the process is still alive.
      * The probe does not verify the endpoint's identity or establish a ChromeDriver session.
      * <p>
-     * The caller must merge stderr into stdout before starting the process. A startup failure
-     * requests forced termination of that process and its observed descendants, with a shared one-second
-     * exit-wait budget. Closing its output pipe runs asynchronously, so even a blocked close cannot delay the caller.
+     * The caller must merge stderr into stdout before starting the process and owns cleanup on any failure.
+     * Observed descendant handles are added to the supplied set for cleanup if readiness or later session
+     * construction fails. Use {@link #terminate(Process, Set, Throwable)} with that set and the original failure.
      * Interruption is preserved on the calling thread and recorded as the cause of the startup
      * exception. A successful return leaves the process and output reader running.
-     * The readiness deadline excludes failure cleanup and the brief wait for final output after process exit.
+     * The readiness deadline excludes the brief wait for final output after process exit.
      * </p>
      *
      * @param process the already started process owned by the caller, with merged stderr and stdout
      * @param port the local debugging port to probe
      * @param timeout the positive startup timeout, representable in nanoseconds
-     * @return an immutable set of descendants observed during startup for later failure cleanup;
-     *         the snapshots may omit descendants created or detached between observations
+     * @param descendants the mutable set that receives observed descendants for caller-owned failure cleanup;
+     *                    snapshots may omit descendants created or detached between observations
      * @throws BrowserStartupFailureException if the process exits, the port does not become ready
      *                                       within the timeout, or the calling thread is interrupted
      */
-    static Set<ProcessHandle> await(Process process, int port, Duration timeout) {
+    static void await(Process process, int port, Duration timeout, Set<ProcessHandle> descendants) {
         long started = System.nanoTime();
         long timeoutNanos = timeout.toNanos();
-        var descendants = new HashSet<ProcessHandle>();
         var output = new Output();
         var reader = Thread.ofVirtual().name("kit-chrome-output").start(() -> output.read(process));
         try {
@@ -111,7 +110,7 @@ final class ChromeStartup {
                         throw new InterruptedException("Chrome startup interrupted");
                     }
                     if (System.nanoTime() - started < timeoutNanos && process.isAlive()) {
-                        return Set.copyOf(descendants);
+                        return;
                     }
                 }
                 remaining = timeoutNanos - (System.nanoTime() - started);
@@ -123,24 +122,13 @@ final class ChromeStartup {
             Thread.currentThread().interrupt();
             var failure = output.failure("Chrome startup interrupted");
             failure.initCause(e);
-            terminate(process, descendants, failure);
             throw failure;
-        } catch (RuntimeException e) {
-            terminate(process, descendants, e);
-            throw e;
         }
     }
 
     /**
-     * Probes the local debugging port using a connection timeout derived from the remaining time.
-     * <p>
-     * The socket timeout is rounded down to milliseconds, with a minimum of one millisecond and a maximum
-     * of one polling interval. The caller rechecks the monotonic deadline after a successful probe.
-     * </p>
-     *
-     * @param port the local debugging port
-     * @param remainingNanos the positive time remaining before the startup deadline
-     * @return {@code true} if connecting and closing the socket complete without an I/O failure
+     * Rounds the remaining time down to milliseconds, then clamps it between one millisecond and one polling interval.
+     * The caller rechecks the monotonic deadline after a successful probe.
      */
     private static boolean isPortOpen(int port, long remainingNanos) {
         int timeoutMillis = (int) Math.max(1, TimeUnit.NANOSECONDS.toMillis(
@@ -152,17 +140,6 @@ final class ChromeStartup {
             // A refused or timed-out connection is expected while the debugging port starts.
             return false;
         }
-    }
-
-    /**
-     * Requests termination after a construction failure using only descendants observable during cleanup.
-     * Use the overload accepting an observed set when startup has already retained descendant handles.
-     *
-     * @param process the process created by the failed construction attempt
-     * @param failure the original construction failure to receive suppressed termination errors
-     */
-    static void terminate(Process process, Throwable failure) {
-        terminate(process, Set.of(), failure);
     }
 
     /**
@@ -209,15 +186,19 @@ final class ChromeStartup {
             }
             awaitTermination(process, descendants, failure);
         } finally {
-            // Descendants may keep the pipe open. Closing it must not delay startup failure.
-            Thread.ofVirtual().name("kit-chrome-output-close").start(() -> {
-                try {
-                    process.getInputStream().close();
-                } catch (IOException e) {
-                    LOGGER.warn("Unable to close Chrome process output", e);
-                }
-            });
+            closeOutputAsync(process);
         }
+    }
+
+    private static void closeOutputAsync(Process process) {
+        // Descendants may keep the pipe open. Closing it must not delay startup failure.
+        Thread.ofVirtual().name("kit-chrome-output-close").start(() -> {
+            try {
+                process.getInputStream().close();
+            } catch (IOException e) {
+                LOGGER.warn("Unable to close Chrome process output", e);
+            }
+        });
     }
 
     /**
@@ -305,10 +286,7 @@ final class ChromeStartup {
         }
 
         /**
-         * Appends decoded output and discards the oldest characters beyond {@link ChromeStartup#OUTPUT_LIMIT}.
-         *
-         * @param buffer the buffer containing decoded output
-         * @param length the number of UTF-16 code units to append from the start of the buffer
+         * Discards the oldest characters beyond {@link ChromeStartup#OUTPUT_LIMIT} after appending decoded output.
          */
         private synchronized void append(char[] buffer, int length) {
             tail.append(buffer, 0, length);
