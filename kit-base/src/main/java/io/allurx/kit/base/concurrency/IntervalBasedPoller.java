@@ -30,10 +30,12 @@ import java.util.function.Supplier;
  * <p>
  * Unless the current thread is already interrupted, the first attempt runs immediately, even with zero duration.
  * Polling stops when the termination condition is satisfied, the thread is interrupted, or no time remains.
- * Interruption preserves the interrupt flag and returns the last result and actual attempt count.
+ * The poller does not clear the interrupt flag; {@link Sleeper#DEFAULT} also preserves it.
+ * Observed interruption returns the last result and actual attempt count.
  * If interrupted before the first attempt, the result is null and the count is zero.
- * The deadline is checked again after sleeping; the poller does not interrupt callbacks already in progress.
+ * After sleeping, another attempt is allowed only if the clock check is strictly before the deadline.
  * Polling can finish before the deadline when a full sleep interval would extend beyond it.
+ * This is not a hard timeout: callbacks are not interrupted, and a sleep may finish late.
  * Callback execution time counts toward the duration. Clock adjustments affect the deadline.
  *
  * <pre>{@code
@@ -141,8 +143,9 @@ public class IntervalBasedPoller extends BasePoller {
         /**
          * Configures the polling to use a custom clock, with the specified duration and interval.
          * Both durations may be zero. Invalid arguments leave the current timing configuration unchanged.
-         * The clock must advance for a positive duration to expire; a fixed clock requires another
-         * stopping condition or a test sleeper that advances a controllable clock.
+         * The clock must advance for a positive duration to expire. If a full interval fits,
+         * a fixed clock can keep polling indefinitely unless the predicate matches or the thread is interrupted.
+         * Tests can instead supply a controllable clock and a sleeper that advances it.
          *
          * @param clock    the clock to use for timing
          * @param duration the non-negative total time to continue polling

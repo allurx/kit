@@ -34,7 +34,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
  * Verifies ATTACH mode with a real headless Chrome, a temporary user data directory, and a local HTML page.
- * Enable with {@code -Dkit.selenium.chromePath=/path/to/chrome}.
+ * Enable explicitly with {@code -Dkit.selenium.chromePath=/path/to/chrome}; the property selects a local executable.
+ * The fixture creates its own profile and page, but ChromeDriver discovery is delegated to Selenium.
  * This covers page control and WebDriver session closure; it does not assert that every browser process has exited.
  *
  * @author allurx

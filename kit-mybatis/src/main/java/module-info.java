@@ -16,7 +16,8 @@
 /**
  * MyBatis handlers that bind declared Java types as JSON text through JDBC.
  * Public handler signatures expose MyBatis, JDBC, JSON operations, and Jackson subtype policies.
- * <p>MyBatis declares a stable automatic module name but has no explicit module descriptor.</p>
+ * <p>The pinned MyBatis dependency uses an automatic module name; the suppression below acknowledges
+ * the intentional transitive dependency on that automatic module.</p>
  *
  * @author allurx
  */

@@ -17,7 +17,8 @@
 /**
  * Typed JSON serialization, conversion, and structural comparison through {@link io.allurx.kit.json.JsonOperator}.
  * {@link io.allurx.kit.json.JacksonOperator} and {@link io.allurx.kit.json.GsonOperator} retain their
- * backend's configuration and document the differences in parsing and comparison semantics.
+ * backend's configuration and document the differences in parsing, comparison, and exception handling.
+ * The default operators are shared; derive a separate backend for local configuration.
  *
  * @author allurx
  */

@@ -30,12 +30,15 @@ import java.util.Objects;
  * The validator must allow each permitted runtime type, including container implementations
  * when they require type information. Use the narrowest policy suitable for the stored models.
  * Each handler uses a rebuilt mapper, leaving the shared Jackson operator unchanged.
- * Automatic type information uses Jackson's default wrapper-array representation and Java class names.
+ * Where this default-typing policy applies, Jackson writes Java class names using its wrapper-array
+ * representation. A final model class, such as a record, does not receive this metadata when used
+ * as the declared target; model annotations can define their own polymorphic mapping.
  * Renaming classes, changing declared types, or changing the subtype policy can make existing
  * database values unreadable; the handler does not migrate stored JSON.
  *
- * <p>The validator controls polymorphic subtype resolution when reading stored JSON; it is not
- * application-level validation of the resulting values. Treat database content according to its
+ * <p>The validator restricts subtype resolution for this default-typing configuration when reading
+ * stored JSON; it does not validate application-level constraints on the resulting values or replace
+ * subtype policies for annotation-defined mappings. Treat database content according to its
  * source and restrict allowed types accordingly. A policy that accepts every subtype removes
  * this restriction; no unrestricted default validator is provided.
  *
@@ -60,7 +63,7 @@ public class GenericJsonTypeHandler<T> extends AbstractJsonTypeHandler<T> {
     }
 
     /**
-     * Creates a handler for a parameterized target type and its permitted runtime subtypes.
+     * Creates a handler for a captured target type and the runtime subtypes allowed by its policy.
      *
      * @param type the non-null target type, including its generic arguments
      * @param validator the non-null policy for allowed polymorphic subtypes

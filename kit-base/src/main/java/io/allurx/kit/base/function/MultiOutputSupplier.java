@@ -51,9 +51,8 @@ public interface MultiOutputSupplier<T> extends Supplier<T> {
     }
 
     /**
-     * Evaluates this supplier once and returns the result wrapped in a {@link Stream}.
-     * <p>
-     * If the result is null, an empty stream is returned.
+     * Evaluates the supplier immediately and exposes a non-null result as a single stream element.
+     * A supplied collection or array remains one element; its contents are not flattened.
      *
      * @return an empty stream for null, otherwise a single-element stream
      */
@@ -65,6 +64,7 @@ public interface MultiOutputSupplier<T> extends Supplier<T> {
      * Evaluates this supplier once and returns its result with an
      * {@linkplain TypeConverter#uncheckedCast(Object) unchecked cast}.
      * The caller must ensure compatibility with {@code R}; generic type arguments are not validated.
+     * An incompatible value may cause a {@link ClassCastException} when the result is used.
      *
      * @param <R> the target type
      * @return the supplied result as the target type

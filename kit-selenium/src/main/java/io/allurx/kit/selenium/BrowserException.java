@@ -26,7 +26,7 @@ package io.allurx.kit.selenium;
 public class BrowserException extends RuntimeException {
 
     /**
-     * Constructs a new {@code BrowserException} with the specified detail message and cause.
+     * Creates a browser failure with contextual detail and its original cause.
      *
      * @param message the detail message
      * @param cause   the cause of the exception
@@ -36,7 +36,7 @@ public class BrowserException extends RuntimeException {
     }
 
     /**
-     * Constructs a new {@code BrowserException} with the specified detail message.
+     * Creates a browser failure without an initial cause.
      *
      * @param message the detail message
      */

@@ -30,10 +30,9 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Owns a Chrome browser and its WebDriver session.
- * In {@link Mode#ATTACH}, Kit starts Chrome and connects ChromeDriver to its debugging port.
+ * Owns a WebDriver session and, in {@link Mode#ATTACH}, the Chrome process started by Kit.
  * In {@link Mode#HOSTED}, ChromeDriver starts and manages Chrome.
- * Use try-with-resources to close each successful build, including when browser operations fail.
+ * Use try-with-resources to release each successful build, including when browser operations fail.
  *
  * @author allurx
  */
@@ -41,13 +40,10 @@ public final class Chrome implements AutoCloseable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Chrome.class);
 
-    /**
-     * The WebDriver session owned by this instance.
-     */
     private final WebDriver webDriver;
 
     /**
-     * The process started in ATTACH mode, or null when WebDriver manages the browser in HOSTED mode.
+     * The process started by Kit, or {@code null} when ChromeDriver manages startup in HOSTED mode.
      */
     private final Process process;
 
@@ -63,8 +59,9 @@ public final class Chrome implements AutoCloseable {
     }
 
     /**
-     * Returns the owned session for direct Selenium operations.
-     * The same reference is returned on every call; its lifetime ends when this instance is closed.
+     * Returns the same owned session on every call for direct Selenium operations.
+     * Calling {@link WebDriver#close()} on it closes the current window; use {@link #close()}
+     * to quit the session and release this wrapper's process ownership.
      *
      * @return the established WebDriver session
      */
@@ -73,10 +70,13 @@ public final class Chrome implements AutoCloseable {
     }
 
     /**
-     * Quits the owned WebDriver session and requests termination of the process started in ATTACH mode.
-     * The process termination request runs even if {@link WebDriver#quit()} fails. Unlike failed-startup
-     * cleanup, this method does not force termination of descendants or wait for process exit.
-     * Exceptions from the underlying cleanup operations propagate without a {@link BrowserException} wrapper.
+     * Quits the WebDriver session, then calls {@link Process#destroy()} on the process started in ATTACH mode.
+     * The process termination request runs even if {@link WebDriver#quit()} fails. This method does not
+     * enumerate descendants or wait for process exit; failed-startup cleanup has a separate, bounded wait.
+     * <p>
+     * Cleanup exceptions propagate without a {@link BrowserException} wrapper. If both operations fail,
+     * the exception from process termination replaces the exception from quitting the session.
+     * </p>
      */
     @Override
     public void close() {
@@ -88,9 +88,9 @@ public final class Chrome implements AutoCloseable {
     }
 
     /**
-     * Creates a new {@link ChromeBuilder} to construct a {@link Chrome} instance.
+     * Creates a builder with the default browser arguments and no selected mode or executable.
      *
-     * @return a new {@link ChromeBuilder}
+     * @return a new mutable builder
      */
     public static ChromeBuilder builder() {
         return new ChromeBuilder();
@@ -114,10 +114,8 @@ public final class Chrome implements AutoCloseable {
         private String chromePath;
 
         /**
-         * Browser arguments for future builds. Executable paths and generated debugging ports are added
-         * only to the command for an individual attempt so failures and retries cannot change this list.
-         *
-         * @see <a href="https://peter.sh/experiments/chromium-command-line-switches/">chromium-command-line-switches</a>
+         * Browser arguments for future builds. ATTACH adds the executable and generated debugging port
+         * to a separate command list so failed attempts and builder reuse do not accumulate launch arguments.
          */
         private final List<String> arguments = new ArrayList<>(List.of(
                 "--no-first-run",
@@ -198,7 +196,7 @@ public final class Chrome implements AutoCloseable {
 
         /**
          * Obtains an operating system assigned port for ATTACH debugging and releases its reservation.
-         * Another process can claim the port before Chrome binds it; session construction must still succeed.
+         * The returned port is only a candidate: another process can claim it before Chrome binds it.
          *
          * @return a port available when the temporary socket was opened
          * @throws RuntimeException if the temporary socket cannot be opened or closed
@@ -229,28 +227,31 @@ public final class Chrome implements AutoCloseable {
 
         /**
          * Starts Chrome and creates a WebDriver session using the current configuration.
-         * Both mode and executable path are required. Each successful call returns a separately owned
+         * Both mode and executable path are required. Each successful call creates a separately owned
          * session without changing the builder configuration; the caller must close the returned instance.
-         * <p>For ATTACH with regular Chrome 136+, use {@link #addArgs(String...)} to supply
-         * {@code --user-data-dir=/path/to/dedicated-data}, pointing to a non-default directory.
-         * Chrome for Testing is exempt from this remote-debugging restriction.
-         * Concurrent ATTACH instances need different user data directories;
-         * {@code --profile-directory} only selects a profile within a user data directory.
+         * <p>
+         * For ATTACH with regular Chrome 136+, supply {@code --user-data-dir=/path/to/dedicated-data}
+         * through {@link #addArgs(String...)}. The directory must differ from Chrome's default data directory;
+         * Chrome for Testing retains the earlier remote-debugging behavior. Concurrent ATTACH instances need
+         * separate user data directories. {@code --profile-directory} selects a profile within that directory
+         * and does not isolate concurrent browser instances.
          * </p>
          * <p>
-         * In {@link Mode#ATTACH}, Kit starts Chrome, then applies a three-second deadline for its debugging
-         * port to accept a TCP connection before constructing ChromeDriver. Port readiness does not establish
-         * a usable debugging session. This deadline does not cover process creation, ChromeDriver construction,
-         * or failure cleanup. In {@link Mode#HOSTED}, ChromeDriver controls startup without this port probe.
+         * In {@link Mode#ATTACH}, Kit starts Chrome and uses a three-second deadline while probing its debugging
+         * port over loopback TCP before constructing ChromeDriver. The probe establishes TCP reachability,
+         * not endpoint identity or a usable debugging session. This deadline excludes process creation,
+         * ChromeDriver construction, failure cleanup, and the brief diagnostic wait after an early process exit.
+         * In {@link Mode#HOSTED}, ChromeDriver controls startup without this port probe.
          * </p>
          * <p>
-         * ATTACH output is drained in the background and a bounded tail is included in startup failures.
-         * If the process exits, the port does not become ready, or startup is interrupted, cleanup requests
-         * forced termination of the process and its observed descendants, with at most one second of exit waiting. A
-         * {@link BrowserStartupFailureException} is preserved as the cause of the construction
-         * exception. Interruption also preserves the calling thread's interrupt flag.
-         * If WebDriver session construction fails after the port is ready, the same process-tree
-         * cleanup runs, preserving the original cause.
+         * ATTACH output is drained in the background; readiness failures include a bounded tail when available.
+         * Early process exit, timeout, and interruption produce a {@link BrowserStartupFailureException}
+         * retained as the cause of the construction exception. Interruption preserves the caller's interrupt flag.
+         * These failures, and a later failure to construct ChromeDriver, request forced termination of the
+         * process and its observed descendants, with a shared one-second exit-wait budget.
+         * Descendant snapshots are not atomic and may miss processes created or detached between observations.
+         * Caught cleanup runtime exceptions and exit timeouts are suppressed onto the original failure;
+         * asynchronous output-close I/O errors are logged.
          * </p>
          *
          * @return a new {@link Chrome} instance

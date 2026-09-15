@@ -25,6 +25,8 @@ import java.lang.reflect.Type;
  * Property discovery, adapters, null handling, and conversion failures follow that backend.
  * Use {@link Class} for a concrete target class or {@link TypeToken} to retain generic arguments;
  * deserialization into a dynamically supplied {@link Type} produces an {@link Object} result.
+ * Failure types are documented by {@link JacksonOperator} and {@link GsonOperator};
+ * this interface does not impose a common exception wrapper.
  *
  * @author allurx
  */
@@ -43,7 +45,7 @@ public interface JsonOperation {
      * The backend uses this type when resolving serializers and type metadata; runtime subtype
      * handling still follows its configuration.
      *
-     * @param source the object to serialize
+     * @param source the value to serialize, including null
      * @param type the non-null declared type, compatible with the source value
      * @return the JSON representation
      */
@@ -60,9 +62,9 @@ public interface JsonOperation {
     Object fromJsonString(String json, Type type);
 
     /**
-     * Converts a JSON string to an object of the specified class.
+     * Deserializes JSON into the specified class without capturing generic arguments.
      *
-     * @param json the JSON string
+     * @param json the JSON input
      * @param type the non-null target class; use a type token for parameterized targets
      * @param <T> the target type
      * @return the deserialized value, which may be null according to the backend and target type

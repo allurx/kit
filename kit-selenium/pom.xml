@@ -20,6 +20,7 @@
             <groupId>org.seleniumhq.selenium</groupId>
             <artifactId>selenium-java</artifactId>
         </dependency>
+        <!-- Required at runtime on the module path by Selenium's HTTP response codec. -->
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
@@ -49,6 +50,7 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
+                    <!-- Permit startup-helper reflection only from the separate test module. -->
                     <argLine>--add-opens io.allurx.kit.selenium/io.allurx.kit.selenium=io.allurx.kit.selenium.test</argLine>
                 </configuration>
             </plugin>

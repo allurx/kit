@@ -20,7 +20,7 @@ import java.util.function.Supplier;
 
 /**
  * A {@link Supplier} whose result is a {@link Throwable}, for lazily creating exceptions.
- * Supplying the exception does not throw it; {@link #get()} does not declare checked exceptions.
+ * Returning an exception does not throw it; {@link #get()} does not declare checked exceptions.
  *
  * @param <T> the type of {@link Throwable} to be supplied
  * @author allurx

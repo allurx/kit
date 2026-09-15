@@ -45,7 +45,8 @@ import static io.allurx.kit.base.reflection.TypeConverter.uncheckedCast;
  *
  * <p>Branch type parameters describe callback inputs when that branch executes.
  * Results use {@link Object}: a skipped mapping can retain the original input or
- * an earlier branch's result. {@code getAsType()} is an explicit unchecked cast.
+ * an earlier branch's result. A matching mapping may return null; that branch still
+ * counts as matched and prevents fallback. {@code getAsType()} is an explicit unchecked cast.
  *
  * <p>Use a fresh instance for each chain. Branches share mutable match state with their
  * enclosing instance, so restarting or forking a chain does not create independent state.
@@ -82,7 +83,7 @@ public final class Conditional<I> {
      * Creates the initial branch from an already evaluated condition.
      * Unlike {@code elseIf}, this method does not consult earlier match state.
      *
-     * @param condition the initial condition to evaluate
+     * @param condition the already evaluated initial condition
      * @return an {@link IfBranch} instance for further branching
      */
     public IfBranch<I> when(boolean condition) {
@@ -124,6 +125,8 @@ public final class Conditional<I> {
 
         /**
          * Maps this branch's value if it matched; otherwise retains its stored value.
+         * A matching mapping creates a new branch and leaves this branch's value intact.
+         * A skipped mapping preserves the stored value even if its type differs from {@code U}.
          *
          * @param function the mapping function, evaluated only for a matching branch
          * @param <U> the callback input type after a successful mapping
@@ -150,6 +153,8 @@ public final class Conditional<I> {
 
         /**
          * Maps this branch's value if it matched; otherwise retains its stored value.
+         * A matching mapping creates a new branch and leaves this branch's value intact.
+         * A skipped mapping preserves the stored value even if its type differs from {@code U}.
          *
          * @param function the mapping function, evaluated only for a matching branch
          * @param <U> the callback input type after a successful mapping
@@ -176,6 +181,8 @@ public final class Conditional<I> {
 
         /**
          * Maps this branch's value if no earlier branch matched; otherwise retains the earlier result.
+         * A matching mapping creates a new branch and leaves this branch's value intact.
+         * A skipped mapping preserves the stored value even if its type differs from {@code U}.
          *
          * @param function the mapping function, evaluated only for a matching branch
          * @param <U> the callback input type after a successful mapping
@@ -298,9 +305,9 @@ public final class Conditional<I> {
 
         /**
          * Returns this branch's stored result, which may come from the original input or an earlier branch.
-         * Later mappings do not replace this stored result.
+         * Later mappings do not replace this stored result. Values are retained by reference, not copied.
          *
-         * @return the result of the current branch
+         * @return this branch's stored result, possibly null and not necessarily of its callback type
          */
         @Override
         public Object get() {
@@ -319,22 +326,45 @@ public final class Conditional<I> {
      */
     private interface Branch<O> extends MultiOutputSupplier<Object> {
 
+        /**
+         * Executes the action only if this branch matched.
+         *
+         * @param runnable the action to execute for a matching branch
+         * @return this branch for chaining
+         * @throws NullPointerException if this branch matched and runnable is null
+         */
         Branch<O> run(Runnable runnable);
 
+        /**
+         * Passes the stored value, including null, to the consumer only if this branch matched.
+         *
+         * @param consumer the consumer of the matching branch's value
+         * @return this branch for chaining
+         * @throws NullPointerException if this branch matched and consumer is null
+         */
         Branch<O> consume(Consumer<? super O> consumer);
 
         /**
-         * Maps the output to a new, possibly null value if the condition is met.
-         * A successful mapping creates a new branch and leaves this branch's value intact.
-         * A skipped mapping preserves the stored value even when its type differs from {@code U}.
+         * Maps the stored value, possibly to null, only if this branch matched.
+         * A matching mapping creates a new matching branch without replacing this branch's stored value.
+         * A skipped mapping returns this branch, whose stored value may not be of type {@code U}.
          *
-         * @param function the mapping function
-         * @param <U>      the new output type
-         * @return a new matching branch, or the same skipped branch
+         * @param function the mapping function, evaluated only for a matching branch
+         * @param <U> the callback input type after a successful mapping
+         * @return a new matching branch with the mapped value, or this skipped branch
          * @throws NullPointerException if this branch matched and function is null
          */
         <U> Branch<U> map(Function<? super O, ? extends U> function);
 
+        /**
+         * Creates and throws the supplied exception only if this branch matched.
+         *
+         * @param supplier the exception supplier, evaluated only for a matching branch
+         * @param <X> the exception type
+         * @return this branch when it did not match
+         * @throws X the supplied exception if this branch matched
+         * @throws NullPointerException if this branch matched and supplier or its result is null
+         */
         <X extends Throwable> Branch<O> throwIt(Supplier<? extends X> supplier) throws X;
     }
 

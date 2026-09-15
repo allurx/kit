@@ -15,7 +15,7 @@
  */
 /**
  * Selenium tests with controlled startup fixtures and an opt-in real Chrome ATTACH test.
- * The test JVM's directed {@code --add-opens} permits access to the internal startup helper.
+ * The POM opens the production package specifically to this test module for startup-helper reflection.
  *
  * @author allurx
  */

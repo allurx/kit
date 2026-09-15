@@ -1,6 +1,7 @@
 @echo off
 rem Manual example: opens Telegram using a profile within the persistent user data directory below.
-rem Adjust the data directory and profile name before use; --profile-directory does not create an independent user data directory.
+rem Adjust the machine-specific directory and profile before use; browser data remains after exit.
+rem --profile-directory selects a profile within that directory, not a separate browser data directory.
 chcp 65001  
 start chrome.exe^
   "https://web.telegram.org/a/"^

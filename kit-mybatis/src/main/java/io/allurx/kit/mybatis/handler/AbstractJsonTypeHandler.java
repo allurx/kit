@@ -37,6 +37,7 @@ import java.util.Objects;
  * <p>SQL {@code NULL} is returned as Java null without invoking JSON deserialization.
  * Non-null column contents, including the JSON literal {@code null}, are passed to the backend.
  * Null parameters are handled by {@link BaseTypeHandler#setParameter} using the supplied JDBC type.
+ * Empty or malformed non-null text is handled by the backend and is not treated as SQL {@code NULL}.
  * Direct calls to the methods declared here propagate JDBC and JSON failures; inherited
  * {@code setParameter} and {@code getResult} calls add MyBatis parameter or result context.
  *
@@ -67,7 +68,7 @@ public abstract class AbstractJsonTypeHandler<T> extends BaseTypeHandler<T> {
     }
 
     /**
-     * Creates a handler for a parameterized target type.
+     * Creates a handler for a target type captured by a token, retaining any generic arguments.
      *
      * @param jsonOperation the non-null JSON operations
      * @param type the non-null target type, including its generic arguments
@@ -82,9 +83,14 @@ public abstract class AbstractJsonTypeHandler<T> extends BaseTypeHandler<T> {
      * Registers this instance using the constructor's target type instead of MyBatis's generic-type inference.
      * Use this method instead of {@code registry.register(handler)} for programmatic registration.
      * Parameterized targets register under their raw class; generic arguments remain available for JSON operations.
-     * Consequently, handlers for {@code List<Person>} and {@code List<Address>} share the same
-     * Java-type key and cannot be selected by element type. Use explicit mappings or separate
-     * registries when the same raw type requires different configurations.
+     * For example, {@code List<Person>} and {@code List<Address>} share the {@code List.class} key,
+     * so registry lookup cannot distinguish their element types.
+     *
+     * <p>MyBatis honors {@link org.apache.ibatis.type.MappedJdbcTypes} on the handler class;
+     * without that annotation, registration uses the null JDBC-type key. Registering another handler
+     * for the same Java/JDBC-type pair replaces the previous mapping. Different JDBC-type mappings
+     * can coexist, but targets requiring different element types for the same JDBC type need explicit
+     * handler mappings or separate registries.
      *
      * @param registry the non-null registry to receive this handler
      * @throws NullPointerException if the registry is null
@@ -104,7 +110,7 @@ public abstract class AbstractJsonTypeHandler<T> extends BaseTypeHandler<T> {
      */
     @Override
     public void setNonNullParameter(PreparedStatement ps, int i, T parameter, JdbcType jdbcType) throws SQLException {
-        // Use the read type when writing so enabled polymorphic handling retains root and generic element type ids.
+        // Declared root and element types determine where the backend writes polymorphic type metadata.
         ps.setString(i, jsonOperation.toJsonString(parameter, type.getType()));
     }
 
@@ -113,7 +119,7 @@ public abstract class AbstractJsonTypeHandler<T> extends BaseTypeHandler<T> {
      *
      * @param rs the result set positioned on a row
      * @param columnName the column label
-     * @return the deserialized value, or null for SQL {@code NULL}
+     * @return null for SQL {@code NULL}, otherwise the backend result, which may also be null
      * @throws SQLException if JDBC string retrieval fails
      */
     @Override
@@ -126,7 +132,7 @@ public abstract class AbstractJsonTypeHandler<T> extends BaseTypeHandler<T> {
      *
      * @param rs the result set positioned on a row
      * @param columnIndex the one-based column index
-     * @return the deserialized value, or null for SQL {@code NULL}
+     * @return null for SQL {@code NULL}, otherwise the backend result, which may also be null
      * @throws SQLException if JDBC string retrieval fails
      */
     @Override
@@ -139,7 +145,7 @@ public abstract class AbstractJsonTypeHandler<T> extends BaseTypeHandler<T> {
      *
      * @param cs the executed callable statement
      * @param columnIndex the one-based output parameter index
-     * @return the deserialized value, or null for SQL {@code NULL}
+     * @return null for SQL {@code NULL}, otherwise the backend result, which may also be null
      * @throws SQLException if JDBC string retrieval fails
      */
     @Override

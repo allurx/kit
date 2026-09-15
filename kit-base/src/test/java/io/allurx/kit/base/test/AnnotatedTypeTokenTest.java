@@ -48,7 +48,7 @@ class AnnotatedTypeTokenTest {
     }
 
     /**
-     * Tests capturing annotations on a simple class type.
+     * A type-use annotation on the captured class remains available at runtime.
      */
     @Test
     void testCaptureAnnotationOnClass() {
@@ -62,7 +62,7 @@ class AnnotatedTypeTokenTest {
     }
 
     /**
-     * Tests capturing annotations on a parameterized type with a class and a generic argument.
+     * Annotations on the outer parameterized type and its generic argument remain distinct.
      *
      * @see AnnotatedParameterizedType
      */
@@ -80,7 +80,7 @@ class AnnotatedTypeTokenTest {
     }
 
     /**
-     * Tests capturing annotations on a type variable and its bounds.
+     * The unresolved type variable preserves annotations on itself, each bound and nested arguments.
      *
      * @param <T> a generic type with annotations on its bounds, including Map and AutoCloseable
      * @see AnnotatedTypeVariable
@@ -111,7 +111,7 @@ class AnnotatedTypeTokenTest {
     }
 
     /**
-     * Tests capturing annotations on a wildcard type.
+     * The list and its wildcard argument each retain their own type-use annotation.
      *
      * @see AnnotatedWildcardType
      */
@@ -129,7 +129,7 @@ class AnnotatedTypeTokenTest {
     }
 
     /**
-     * Tests capturing annotations on an array type.
+     * Annotations on the array dimension and its component type remain distinct.
      *
      * @see AnnotatedArrayType
      */

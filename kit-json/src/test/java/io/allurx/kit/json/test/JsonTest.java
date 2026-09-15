@@ -63,7 +63,8 @@ public class JsonTest {
     }
 
     /**
-     * Compares compact and pretty-printed JSON produced by Jackson.
+     * Formatting is ignored when comparing JSON; pretty printing is configured on a rebuilt mapper
+     * so this test does not alter the shared default operator.
      */
     @Test
     void testJacksonCompare() {
@@ -85,7 +86,8 @@ public class JsonTest {
     }
 
     /**
-     * Compares compact and pretty-printed JSON produced by Gson.
+     * Formatting is ignored when comparing JSON; the Gson instance for pretty printing is built separately
+     * from the shared default Gson instance.
      */
     @Test
     void testGsonCompare() {
@@ -95,7 +97,8 @@ public class JsonTest {
 
     /**
      * Distinct numeric values remain unequal, including inside nested objects and arrays.
-     * Numeric comparison rejects values outside the supported BigDecimal range.
+     * Values beyond double precision remain distinguishable; an exponent outside BigDecimal's
+     * supported range produces an explicit failure instead of an approximate comparison.
      */
     @Test
     void testGsonComparePreservesNumericPrecision() {

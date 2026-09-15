@@ -24,7 +24,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Unit tests for {@link Conditional}.
+ * Verifies branch selection, result preservation and callback types for {@link Conditional}.
  *
  * @author allurx
  */

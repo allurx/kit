@@ -29,7 +29,8 @@ import java.util.function.Supplier;
  * Implementations determine additional stopping rules such as attempt limits or deadlines.
  *
  * <p>A returned result does not establish that the predicate matched: a limit or interruption
- * may have ended polling. Callers that need to distinguish success must inspect the result.
+ * may have ended polling. Applications that need a success signal must derive it from the
+ * returned value or record the predicate's decision, especially when the predicate has side effects.
  *
  * @author allurx
  */
@@ -57,6 +58,8 @@ public interface Poller {
      * Runs the action before testing the condition, stopping on a match or the implementation's limit.
      * Both arguments are validated before polling starts or either callback executes.
      * The action is adapted as the conversion function, so configured ignored exceptions apply to it.
+     * The condition is still evaluated after an ignored action failure. This overload discards
+     * the polling result and does not report whether the condition matched.
      *
      * @param runnable        the operation to execute during each polling iteration
      * @param booleanSupplier the condition used to terminate the polling; polling stops when {@code true} is returned

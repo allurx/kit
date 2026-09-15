@@ -26,7 +26,7 @@ import java.time.ZoneOffset;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Tests polling completion and interruption handling.
+ * Tests polling completion with real delays and interruption handling with controlled sleeping.
  *
  * @author allurx
  */

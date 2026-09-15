@@ -27,7 +27,8 @@ import java.util.function.UnaryOperator;
 /**
  * JSON operations with access to a reusable backend, object conversion, and structural comparison.
  * Operators retain the backend supplied at construction. Creating a new wrapper with {@code with}
- * does not itself copy the backend or its custom collaborators.
+ * does not itself copy the backend or its custom collaborators. Safe concurrent reuse depends
+ * on the backend and any configured serializers, adapters, or other collaborators.
  *
  * @param <J> the backend type, such as {@link JsonMapper} or {@link Gson}
  * @author allurx
@@ -53,8 +54,8 @@ public interface JsonOperator<J> extends JsonOperation {
 
     /**
      * Creates a new operator around the transformed backend.
-     * Use {@code with(mapper -> mapper.rebuild().enable(...).build())} for Jackson or
-     * {@code with(gson -> gson.newBuilder().setPrettyPrinting().create())} for Gson.
+     * Derive Jackson settings with {@link JsonMapper#rebuild()} and build a new mapper;
+     * for Gson, use {@code with(gson -> gson.newBuilder().setPrettyPrinting().create())}.
      * The transformation runs once against the existing backend; returning it unchanged shares it.
      * Mutating a custom collaborator in the transformation can also affect the original operator.
      *
@@ -69,9 +70,10 @@ public interface JsonOperator<J> extends JsonOperation {
      * Use the class or type-token overload for a statically typed result.
      * This is a JSON mapping operation, not a field-by-field clone: configured serializers,
      * deserializers, and property rules determine the result. No existing target object is updated,
-     * and preservation of object identity or cyclic references is not guaranteed.
+     * and preservation of object identity or cyclic references is not guaranteed. This method
+     * also makes no guarantee that every mutable value in the result is independent of the source.
      *
-     * @param source the source object
+     * @param source the source value, including null as supported by the backend and target type
      * @param type the non-null target type
      * @return the converted value, possibly null
      */
@@ -81,7 +83,7 @@ public interface JsonOperator<J> extends JsonOperation {
      * Converts a value to the specified class using the same mapping rules as
      * {@link #copyProperties(Object, Type)}.
      *
-     * @param source the source object
+     * @param source the source value, including null as supported by the backend and target type
      * @param type the non-null target class
      * @param <T> the target type
      * @return the converted value, possibly null
@@ -92,7 +94,7 @@ public interface JsonOperator<J> extends JsonOperation {
      * Converts a value to the type captured by the token, retaining generic arguments and using
      * the same mapping rules as {@link #copyProperties(Object, Type)}.
      *
-     * @param source the source object
+     * @param source the source value, including null as supported by the backend and target type
      * @param typeToken the non-null target type token
      * @param <T> the target type
      * @return the converted value, possibly null
@@ -115,13 +117,15 @@ public interface JsonOperator<J> extends JsonOperation {
 
     /**
      * A shared operator using Jackson's native defaults, without Kit-specific configuration.
-     * Derive local settings with {@link JacksonOperator#with(UnaryOperator)}.
+     * Derive local settings with {@link JacksonOperator#with(UnaryOperator)} and a rebuilt mapper;
+     * a derived operator does not replace this shared instance.
      */
     JacksonOperator JACKSON_OPERATOR = new JacksonOperator(JsonMapper.builder().build());
 
     /**
      * A shared operator using Gson's native defaults, without Kit-specific configuration.
-     * Derive local settings with {@link GsonOperator#with(UnaryOperator)}.
+     * Derive local settings with {@link GsonOperator#with(UnaryOperator)} and a newly built Gson;
+     * a derived operator does not replace this shared instance.
      */
     GsonOperator GSON_OPERATOR = new GsonOperator(new Gson());
 }

@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 /**
- * Dependency-free utilities for conditional flows, synchronous polling, functional adapters and reflection types.
+ * Utilities for conditional flows, synchronous polling, functional adapters and reflection types,
+ * using only JDK APIs at runtime.
  *
  * @author allurx
  */

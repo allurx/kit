@@ -81,6 +81,7 @@ class JsonTypeHandlerRegistrationTest {
         handler.registerTo(registry);
 
         assertSame(handler, registry.getTypeHandler(List.class));
+        // MyBatis erases the lookup token to List; the registered handler retains Person for JSON reads.
         var registered = registry.getTypeHandler(new TypeReference<List<Person>>() {});
         assertSame(handler, registered);
         assertEquals(List.of(new Person("Alice")),
@@ -97,8 +98,10 @@ class JsonTypeHandlerRegistrationTest {
         handler.registerTo(registry);
 
         assertSame(handler, registry.getTypeHandler(List.class));
+        // MyBatis erases the lookup token to List; the registered handler retains Person for JSON reads.
         var registered = registry.getTypeHandler(new TypeReference<List<Person>>() {});
         assertSame(handler, registered);
+        // NON_FINAL includes the declared List container; the final Person record needs no automatic type id.
         assertEquals(List.of(new Person("Alice")), registered.getResult(
                 resultSet("[\"java.util.ArrayList\",[{\"name\":\"Alice\"}]]"), "value"));
     }

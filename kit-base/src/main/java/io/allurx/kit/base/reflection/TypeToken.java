@@ -104,6 +104,8 @@ public abstract class TypeToken<T> {
     /**
      * Returns the raw class, resolving generic arrays through their component types.
      * Type variables and wildcards use the raw class of their first upper bound.
+     * A wildcard {@code ? extends Number} therefore yields {@code Number.class}, whereas
+     * {@code ? super Number} yields {@code Object.class}; lower bounds do not determine the raw class.
      * <p>Generic arguments are erased: {@code List<String>} yields {@code List.class}.
      * {@link Class#cast(Object)} checks only this raw class, not generic arguments.
      *

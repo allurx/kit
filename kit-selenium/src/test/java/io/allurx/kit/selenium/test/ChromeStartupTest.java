@@ -39,7 +39,7 @@ import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Verifies bounded Chrome startup waiting, process output handling, and failure cleanup.
+ * Verifies ATTACH startup coordination: port deadlines, process output, and cleanup of observed descendants.
  * <p>
  * Tests use local Java child processes, loopback sockets, and a controlled process substitute.
  * They do not require an installed Chrome browser or establish a ChromeDriver session.
@@ -138,7 +138,7 @@ public class ChromeStartupTest {
     }
 
     /**
-     * Verifies that interruption stops startup promptly, terminates the child, and preserves the flag and cause.
+     * Verifies that interruption stops startup, terminates the observed process tree, and preserves the flag and cause.
      *
      * @throws Exception if process setup, thread coordination, port allocation, or cleanup fails
      */
@@ -210,6 +210,10 @@ public class ChromeStartupTest {
         }
     }
 
+    /**
+     * Forces root exit between descendant observation and the exit check, then verifies cleanup of the retained handles.
+     * This covers reparenting of observed descendants, not descendants that escape observation altogether.
+     */
     @Test
     void terminatesObservedDescendantsAfterTheRootExits() throws Exception {
         try (var tree = startProcessTree()) {
@@ -478,7 +482,8 @@ public class ChromeStartupTest {
     }
 
     /**
-     * Obtains an operating system assigned loopback port and releases the temporary reservation.
+     * Obtains an operating system assigned loopback port, releasing the reservation before the fixture uses it.
+     * Another process may claim the port in between; this helper does not guarantee that a later bind succeeds.
      *
      * @return the port selected for a subsequent child process to bind
      * @throws Exception if the loopback address cannot be resolved or the temporary socket cannot be opened or closed
@@ -520,8 +525,8 @@ public class ChromeStartupTest {
     /**
      * Provides controlled process and socket behavior for startup regression tests.
      * <p>
-     * This class runs in a separate JVM using only JDK APIs, so its process pipes and lifetime are real
-     * while its behavior remains independent of Chrome, ChromeDriver, and external services.
+     * This class runs on the classpath in a separate JVM using only JDK APIs. Its pipes and process lifetime
+     * are real; the fixture does not validate Selenium's module dependencies or ChromeDriver integration.
      * </p>
      *
      * @author allurx

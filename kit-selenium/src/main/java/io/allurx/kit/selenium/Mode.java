@@ -25,8 +25,8 @@ import org.openqa.selenium.WebDriver;
 public enum Mode {
 
     /**
-     * Kit starts and owns the Chrome process; ChromeDriver connects to its debugging port.
-     * This mode launches a new process rather than attaching to an arbitrary existing browser.
+     * Kit launches a new Chrome process and connects ChromeDriver to that process's debugging port.
+     * Existing browsers cannot be selected through this mode.
      * Supply a dedicated user data directory through {@link Chrome.ChromeBuilder#addArgs(String...)}.
      *
      * @see Chrome.ChromeBuilder#build()

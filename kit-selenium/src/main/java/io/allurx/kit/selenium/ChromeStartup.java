@@ -32,7 +32,7 @@ import java.util.concurrent.TimeUnit;
  * <p>
  * Port readiness uses a deadline based on monotonic elapsed time. Merged process output is drained on a
  * virtual thread, with only its recent tail retained for failure diagnostics. Output reading
- * continues after successful startup so a full pipe cannot block the running browser.
+ * continues after successful startup until EOF or an I/O failure so normal output does not fill the pipe.
  * </p>
  *
  * @author allurx
@@ -57,9 +57,6 @@ final class ChromeStartup {
      */
     private static final Duration TERMINATION_TIMEOUT = Duration.ofSeconds(1);
 
-    /**
-     * Prevents instantiation of this startup utility.
-     */
     private ChromeStartup() {
     }
 
@@ -68,8 +65,8 @@ final class ChromeStartup {
      * The probe does not verify the endpoint's identity or establish a ChromeDriver session.
      * <p>
      * The caller must merge stderr into stdout before starting the process. A startup failure
-     * requests forced termination of that process and its observed descendants, with at most one second
-     * of exit waiting. Its output pipe is closed asynchronously without waiting for EOF.
+     * requests forced termination of that process and its observed descendants, with a shared one-second
+     * exit-wait budget. Closing its output pipe runs asynchronously, so even a blocked close cannot delay the caller.
      * Interruption is preserved on the calling thread and recorded as the cause of the startup
      * exception. A successful return leaves the process and output reader running.
      * The readiness deadline excludes failure cleanup and the brief wait for final output after process exit.
@@ -78,7 +75,8 @@ final class ChromeStartup {
      * @param process the already started process owned by the caller, with merged stderr and stdout
      * @param port the local debugging port to probe
      * @param timeout the positive startup timeout, representable in nanoseconds
-     * @return descendants observed during startup, retained for cleanup if session construction fails
+     * @return an immutable set of descendants observed during startup for later failure cleanup;
+     *         the snapshots may omit descendants created or detached between observations
      * @throws BrowserStartupFailureException if the process exits, the port does not become ready
      *                                       within the timeout, or the calling thread is interrupted
      */
@@ -136,13 +134,13 @@ final class ChromeStartup {
     /**
      * Probes the local debugging port using a connection timeout derived from the remaining time.
      * <p>
-     * The socket timeout has millisecond precision and is capped at one polling interval.
-     * A successful probe establishes TCP reachability only; WebDriver creates its session later.
+     * The socket timeout is rounded down to milliseconds, with a minimum of one millisecond and a maximum
+     * of one polling interval. The caller rechecks the monotonic deadline after a successful probe.
      * </p>
      *
      * @param port the local debugging port
      * @param remainingNanos the positive time remaining before the startup deadline
-     * @return {@code true} if a connection succeeds, otherwise {@code false}
+     * @return {@code true} if connecting and closing the socket complete without an I/O failure
      */
     private static boolean isPortOpen(int port, long remainingNanos) {
         int timeoutMillis = (int) Math.max(1, TimeUnit.NANOSECONDS.toMillis(
@@ -157,7 +155,8 @@ final class ChromeStartup {
     }
 
     /**
-     * Terminates a failed construction's process and descendants still associated with it.
+     * Requests termination after a construction failure using only descendants observable during cleanup.
+     * Use the overload accepting an observed set when startup has already retained descendant handles.
      *
      * @param process the process created by the failed construction attempt
      * @param failure the original construction failure to receive suppressed termination errors
@@ -167,9 +166,14 @@ final class ChromeStartup {
     }
 
     /**
-     * Retains observed descendants across parent exit, then snapshots the remaining tree before forcing termination.
-     * Cleanup waits at most one second for exit, preserves interruption, and suppresses errors onto the original failure.
-     * Process snapshots cannot capture children that detach before observation or appear after enumeration.
+     * Merges previously observed descendants with current snapshots before requesting forced termination.
+     * The supplied set is copied, preserving handles whose parent has already exited.
+     * <p>
+     * A shared one-second exit-wait budget starts after termination requests. Cleanup preserves interruption
+     * and attaches caught runtime exceptions and exit timeouts to the original failure as suppressed exceptions.
+     * Asynchronous output-close I/O errors are logged separately. Neither process enumeration nor termination
+     * is atomic: descendants that detach before observation or appear after enumeration may escape cleanup.
+     * </p>
      *
      * @param process the root process owned by the failed construction attempt
      * @param observed descendants retained during startup, including any whose parent has already exited
@@ -251,6 +255,7 @@ final class ChromeStartup {
         }
     }
 
+    // A process implementation may rethrow the original failure; self-suppression would replace it with another error.
     private static void suppress(Throwable failure, RuntimeException error) {
         if (error != failure) {
             failure.addSuppressed(error);
@@ -273,18 +278,14 @@ final class ChromeStartup {
          */
         private final StringBuilder tail = new StringBuilder();
 
-        /**
-         * Creates an initially empty diagnostic buffer.
-         */
         private Output() {
         }
 
         /**
-         * Continuously drains merged output until EOF or stream closure.
+         * Drains merged output until EOF or an I/O failure, using the process reader's native encoding.
          * <p>
-         * Reads fixed-size character blocks rather than lines, so output without newlines neither
-         * blocks diagnostic collection nor requires an unbounded line buffer. Read errors are
-         * logged while the process is alive; closure after process termination is expected.
+         * Reads fixed-size character blocks so diagnostics do not depend on line boundaries or require an unbounded
+         * line buffer. Read errors are logged while the process is alive; closure after process termination is expected.
          * </p>
          *
          * @param process the process whose merged output is read on the background thread
@@ -307,7 +308,7 @@ final class ChromeStartup {
          * Appends decoded output and discards the oldest characters beyond {@link ChromeStartup#OUTPUT_LIMIT}.
          *
          * @param buffer the buffer containing decoded output
-         * @param length the number of characters to append from the start of the buffer
+         * @param length the number of UTF-16 code units to append from the start of the buffer
          */
         private synchronized void append(char[] buffer, int length) {
             tail.append(buffer, 0, length);

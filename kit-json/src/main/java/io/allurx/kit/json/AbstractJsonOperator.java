@@ -65,7 +65,8 @@ public abstract class AbstractJsonOperator<J> implements JsonOperator<J> {
     /**
      * Parses the first input and compares each subsequent input with it until a mismatch occurs.
      * A single input is parsed and then returns true without invoking the equality predicate.
-     * Exceptions from parsing or comparison propagate to the caller.
+     * Inputs after the first mismatch are not parsed. Exceptions from parsing or comparison
+     * propagate to the caller.
      *
      * @param jsons the JSON strings to compare
      * @param parser parses each visited JSON input once
