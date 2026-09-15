@@ -16,27 +16,34 @@
 package io.allurx.kit.base.concurrency;
 
 import java.time.Duration;
-import java.util.concurrent.locks.LockSupport;
 
 /**
- * An interface for controlling thread sleep behavior.
- *
- * <p>Implementations of this interface can customize how a thread is put to sleep, which can be useful for controlling timing and pauses in various logic scenarios.</p>
+ * Supplies a replaceable delay operation, used by {@link IntervalBasedPoller} between attempts.
+ * Custom implementations can advance a test clock instead of blocking the current thread.
+ * Implementations used for polling should preserve the interrupt flag when a wait is interrupted.
  *
  * @author allurx
  */
 public interface Sleeper {
 
     /**
-     * The default {@link Sleeper} implementation.
-     * <p>This implementation uses {@link LockSupport#parkNanos(long)} to pause the thread for the specified duration.</p>
+     * Pauses using {@link Thread#sleep(Duration)} to avoid returning early due to park permits or spurious returns from parking.
+     * Interruption ends the wait and restores the interrupt flag for the caller.
+     * Timing is subject to system timer precision and thread scheduling.
      */
-    Sleeper DEFAULT = duration -> LockSupport.parkNanos(duration.toNanos());
+    Sleeper DEFAULT = duration -> {
+        try {
+            Thread.sleep(duration);
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
+        }
+    };
 
     /**
-     * Causes the current thread to sleep for the specified duration.
+     * Waits for the requested duration according to this implementation's timing policy.
+     * No checked interruption exception is declared; {@link #DEFAULT} restores the thread's interrupt flag.
      *
-     * @param duration the amount of time for which the thread should sleep
+     * @param duration the requested delay; pollers supply a non-null, non-negative duration
      */
     void sleep(Duration duration);
 }

@@ -16,38 +16,67 @@
 
 package io.allurx.kit.mybatis.handler;
 
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import io.allurx.kit.base.reflection.TypeToken;
 import io.allurx.kit.json.JacksonOperator;
 import io.allurx.kit.json.JsonOperator;
+import tools.jackson.databind.DefaultTyping;
+import tools.jackson.databind.jsontype.PolymorphicTypeValidator;
 
+import java.util.Objects;
 
 /**
- * Preserves type information of objects in JSON strings using a configured {@link ObjectMapper} to ensure accurate restoration of the original object during deserialization.
- * Supports serialization and deserialization of generic objects.
+ * Stores polymorphic JSON using Jackson's {@link DefaultTyping#NON_FINAL} and an explicit
+ * application-defined subtype policy.
+ * The validator must allow each permitted runtime type, including container implementations
+ * when they require type information. Use the narrowest policy suitable for the stored models.
+ * Each handler uses a rebuilt mapper, leaving the shared Jackson operator unchanged.
+ * Where this default-typing policy applies, Jackson writes Java class names using its wrapper-array
+ * representation. A final model class, such as a record, does not receive this metadata when used
+ * as the declared target; model annotations can define their own polymorphic mapping.
+ * Renaming classes, changing declared types, or changing the subtype policy can make existing
+ * database values unreadable; the handler does not migrate stored JSON.
  *
- * @param <T> The type of object returned by the mapper methods
+ * <p>The validator restricts subtype resolution for this default-typing configuration when reading
+ * stored JSON; it does not validate application-level constraints on the resulting values or replace
+ * subtype policies for annotation-defined mappings. Treat database content according to its
+ * source and restrict allowed types accordingly. A policy that accepts every subtype removes
+ * this restriction; no unrestricted default validator is provided.
+ *
+ * <p>Register an instance with {@link #registerTo(org.apache.ibatis.type.TypeHandlerRegistry)},
+ * or define a subclass whose {@link Class} constructor supplies the application's validator.
+ * The two-argument constructors cannot be used directly by MyBatis's class-only instantiation.
+ *
+ * @param <T> the declared Java value type
  * @author allurx
- * @see GenericJsonTypeHandler#JACKSON_OPERATOR
  */
-public class GenericJsonTypeHandler<T> extends AbstractJsonTypeHandler<T, ObjectMapper> {
+public class GenericJsonTypeHandler<T> extends AbstractJsonTypeHandler<T> {
 
     /**
-     * JSON operator with default typing activated to preserve type information.
-     */
-    private static final JacksonOperator JACKSON_OPERATOR = JsonOperator.JACKSON_OPERATOR.with(ObjectMapper::copy)
-            .configure(objectMapper -> objectMapper.activateDefaultTyping(
-                    objectMapper.getPolymorphicTypeValidator(),
-                    ObjectMapper.DefaultTyping.NON_FINAL,
-                    JsonTypeInfo.As.PROPERTY
-            ));
-
-    /**
-     * Constructor.
+     * Creates a handler for a declared target class and its permitted runtime subtypes.
      *
-     * @param clazz The type of object returned
+     * @param type the non-null declared target class
+     * @param validator the non-null policy for allowed polymorphic subtypes
+     * @throws NullPointerException if either argument is null
      */
-    public GenericJsonTypeHandler(Class<T> clazz) {
-        super(JACKSON_OPERATOR, clazz);
+    public GenericJsonTypeHandler(Class<T> type, PolymorphicTypeValidator validator) {
+        super(operator(validator), type);
+    }
+
+    /**
+     * Creates a handler for a captured target type and the runtime subtypes allowed by its policy.
+     *
+     * @param type the non-null target type, including its generic arguments
+     * @param validator the non-null policy for allowed polymorphic subtypes
+     * @throws NullPointerException if either argument is null
+     */
+    public GenericJsonTypeHandler(TypeToken<T> type, PolymorphicTypeValidator validator) {
+        super(operator(validator), type);
+    }
+
+    private static JacksonOperator operator(PolymorphicTypeValidator validator) {
+        Objects.requireNonNull(validator, "validator");
+        return JsonOperator.JACKSON_OPERATOR.with(mapper -> mapper.rebuild()
+                .activateDefaultTyping(validator, DefaultTyping.NON_FINAL)
+                .build());
     }
 }

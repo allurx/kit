@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 /**
- * json test module
+ * JSON operator tests with reflective access to model fixtures for JUnit and the JSON backends.
  *
  * @author allurx
  */

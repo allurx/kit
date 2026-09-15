@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 /**
- * base module
+ * Utilities for conditional flows, synchronous polling, functional adapters and reflection types,
+ * using only JDK APIs at runtime.
  *
  * @author allurx
  */

@@ -17,6 +17,7 @@ package io.allurx.kit.base.test;
 
 import org.junit.jupiter.api.Test;
 import io.allurx.kit.base.reflection.AnnotatedTypeToken;
+import io.allurx.kit.base.reflection.TypeToken;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -31,9 +32,10 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 /**
- * Tests for {@link AnnotatedTypeToken} capturing annotations on different types.
+ * Tests annotation capture and value equality for {@link AnnotatedTypeToken}.
  *
  * @author allurx
  */
@@ -46,9 +48,7 @@ class AnnotatedTypeTokenTest {
     }
 
     /**
-     * Tests capturing annotations on a simple class type.
-     *
-     * @see sun.reflect.annotation.AnnotatedTypeFactory.AnnotatedTypeBaseImpl
+     * A type-use annotation on the captured class remains available at runtime.
      */
     @Test
     void testCaptureAnnotationOnClass() {
@@ -58,12 +58,11 @@ class AnnotatedTypeTokenTest {
         var annotatedType = annotatedTypeToken.getAnnotatedType();
         var myAnnotation = annotatedType.getDeclaredAnnotation(MyAnnotation.class);
 
-        // assertInstanceOf(sun.reflect.annotation.AnnotatedTypeFactory.AnnotatedTypeBaseImpl.class, annotatedType);
         assertEquals(1, myAnnotation.value());
     }
 
     /**
-     * Tests capturing annotations on a parameterized type with a class and a generic argument.
+     * Annotations on the outer parameterized type and its generic argument remain distinct.
      *
      * @see AnnotatedParameterizedType
      */
@@ -81,7 +80,7 @@ class AnnotatedTypeTokenTest {
     }
 
     /**
-     * Tests capturing annotations on a type variable and its bounds.
+     * The unresolved type variable preserves annotations on itself, each bound and nested arguments.
      *
      * @param <T> a generic type with annotations on its bounds, including Map and AutoCloseable
      * @see AnnotatedTypeVariable
@@ -94,11 +93,9 @@ class AnnotatedTypeTokenTest {
 
         var annotatedType = assertInstanceOf(AnnotatedTypeVariable.class, annotatedTypeToken.getAnnotatedType());
 
-        // T's bounds: Map<Integer, String> & AutoCloseable
         var bounds = annotatedType.getAnnotatedBounds();
         var bound0 = assertInstanceOf(AnnotatedParameterizedType.class, bounds[0]);
         var bound1 = bounds[1];
-        // assertInstanceOf(sun.reflect.annotation.AnnotatedTypeFactory.AnnotatedTypeBaseImpl.class, bound1);
 
         var myAnnotation1 = annotatedType.getDeclaredAnnotation(MyAnnotation.class);
         var myAnnotation2 = bound0.getDeclaredAnnotation(MyAnnotation.class);
@@ -114,7 +111,7 @@ class AnnotatedTypeTokenTest {
     }
 
     /**
-     * Tests capturing annotations on a wildcard type.
+     * The list and its wildcard argument each retain their own type-use annotation.
      *
      * @see AnnotatedWildcardType
      */
@@ -132,7 +129,7 @@ class AnnotatedTypeTokenTest {
     }
 
     /**
-     * Tests capturing annotations on an array type.
+     * Annotations on the array dimension and its component type remain distinct.
      *
      * @see AnnotatedArrayType
      */
@@ -147,6 +144,38 @@ class AnnotatedTypeTokenTest {
 
         assertEquals(1, myAnnotation1.value());
         assertEquals(2, myAnnotation2.value());
+    }
+
+    /**
+     * Plain and annotated tokens remain unequal in both directions, even without type annotations.
+     */
+    @Test
+    void testEqualityBetweenTokenKinds() {
+        TypeToken<String> plain = new TypeToken<>() {};
+        TypeToken<String> annotated = new AnnotatedTypeToken<>() {};
+
+        assertNotEquals(plain, annotated);
+        assertNotEquals(annotated, plain);
+    }
+
+    /**
+     * Distinct anonymous subclasses retain value equality and matching hash codes within each token kind.
+     */
+    @Test
+    void testValueEqualityAcrossAnonymousSubclasses() {
+        TypeToken<String> plain = new TypeToken<>() {};
+        TypeToken<String> samePlain = new TypeToken<>() {};
+        AnnotatedTypeToken<String> annotated = new AnnotatedTypeToken<@MyAnnotation(1) String>() {};
+        AnnotatedTypeToken<String> sameAnnotated = new AnnotatedTypeToken<@MyAnnotation(1) String>() {};
+        AnnotatedTypeToken<String> differentAnnotated = new AnnotatedTypeToken<@MyAnnotation(2) String>() {};
+
+        assertEquals(plain, samePlain);
+        assertEquals(samePlain, plain);
+        assertEquals(plain.hashCode(), samePlain.hashCode());
+        assertEquals(annotated, sameAnnotated);
+        assertEquals(sameAnnotated, annotated);
+        assertEquals(annotated.hashCode(), sameAnnotated.hashCode());
+        assertNotEquals(differentAnnotated, annotated);
     }
 
 }

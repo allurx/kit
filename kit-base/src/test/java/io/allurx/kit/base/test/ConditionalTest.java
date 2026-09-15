@@ -16,18 +16,22 @@
 package io.allurx.kit.base.test;
 
 import io.allurx.kit.base.Conditional;
+import io.allurx.kit.base.function.MultiOutputSupplier;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+import java.util.Optional;
+
 /**
- * Unit tests for {@link Conditional}.
+ * Verifies branch selection, result preservation and callback types for {@link Conditional}.
  *
  * @author allurx
  */
 class ConditionalTest {
 
     /**
-     * Tests a conditional flow with multiple branches and returns the result.
+     * The first match supplies the result even when later branches declare different mapping types.
      */
     @Test
     void testConditional() {
@@ -45,7 +49,7 @@ class ConditionalTest {
     }
 
     /**
-     * Tests the function of the Conditional class.
+     * A matching branch passes its mapped value to following callbacks and result access.
      */
     @Test
     void testConditionalFunction() {
@@ -55,6 +59,40 @@ class ConditionalTest {
                 .consume(i -> System.out.printf("result: %s%n", i))
                 .get();
         Assertions.assertEquals(12, result);
+    }
+
+    @Test
+    void unmatchedMappingExposesOriginalInputAsObject() {
+        MultiOutputSupplier<Object> result = Conditional.of("abc")
+                .when(false).map(String::length);
+
+        Assertions.assertEquals("abc", result.get());
+        Assertions.assertEquals(Optional.of("abc"), result.getAsOptional());
+        Assertions.assertEquals(List.of("abc"), result.getAsStream().toList());
+        Assertions.assertEquals("abc", result.getAsConditional().when(false).get());
+    }
+
+    @Test
+    void skippedBranchesPreserveTheSelectedValue() {
+        MultiOutputSupplier<Object> result = Conditional.of("abc")
+                .when(true).map(String::length)
+                .elseIf(() -> Assertions.fail("The later condition must be skipped"))
+                .map(value -> Assertions.fail("The later mapping must be skipped"))
+                .orElse();
+
+        Assertions.assertEquals(3, result.get());
+        Assertions.assertNull(Conditional.of("abc").when(true).map(value -> (String) null)
+                .orElse().map(value -> Assertions.fail("A selected null must not activate fallback")).get());
+    }
+
+    @Test
+    void mappingPreservesEarlierBranchValuesAndCallbackTypes() {
+        var original = Conditional.of("abc").when(true);
+        var mapped = original.map(String::length);
+
+        original.consume(value -> Assertions.assertEquals("ABC", value.toUpperCase()));
+        Assertions.assertEquals("abc", original.get());
+        Assertions.assertEquals(3, mapped.get());
     }
 
 }

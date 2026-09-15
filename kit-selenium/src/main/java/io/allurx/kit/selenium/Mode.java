@@ -18,27 +18,23 @@ package io.allurx.kit.selenium;
 import org.openqa.selenium.WebDriver;
 
 /**
- * {@link WebDriver} communication modes with the browser.
- * <p>
- * This enum defines two modes of interaction:
- * </p>
- * <ul>
- *     <li>{@link #ATTACH} - Communicates with an already running Chrome instance using the Chrome DevTools Protocol (CDP).</li>
- *     <li>{@link #HOSTED} - Communicates with Chrome using the WebDriver protocol (JSON Wire Protocol or W3C WebDriver). In this mode, the lifecycle of Chrome is fully managed by {@link WebDriver}.</li>
- * </ul>
+ * Defines who starts Chrome before it is controlled via {@link WebDriver}.
  *
  * @author allurx
  */
 public enum Mode {
 
     /**
-     * Communicates with an already running Chrome instance using the Chrome DevTools Protocol (CDP).
+     * Kit launches a new Chrome process and connects ChromeDriver to that process's debugging port.
+     * Existing browsers cannot be selected through this mode.
+     * Supply a dedicated user data directory through {@link Chrome.ChromeBuilder#addArgs(String...)}.
+     *
+     * @see Chrome.ChromeBuilder#build()
      */
     ATTACH,
 
     /**
-     * Communicates with Chrome using the WebDriver protocol (JSON Wire Protocol or W3C WebDriver).
-     * In this mode, the lifecycle of Chrome is entirely controlled by {@link WebDriver}.
+     * ChromeDriver starts Chrome and manages its lifecycle.
      */
     HOSTED
 }

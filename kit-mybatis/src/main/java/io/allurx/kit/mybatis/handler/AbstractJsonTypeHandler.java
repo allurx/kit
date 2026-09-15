@@ -16,71 +16,144 @@
 
 package io.allurx.kit.mybatis.handler;
 
+import io.allurx.kit.base.reflection.TypeToken;
+import io.allurx.kit.json.JsonOperation;
 import org.apache.ibatis.type.BaseTypeHandler;
 import org.apache.ibatis.type.JdbcType;
-import io.allurx.kit.json.JsonOperator;
+import org.apache.ibatis.type.TypeHandlerRegistry;
 
-import java.lang.reflect.Type;
 import java.sql.CallableStatement;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Optional;
+import java.util.Objects;
 
 /**
- * Base class for JSON type handlers, providing basic methods for serializing and deserializing objects.
+ * Maps a declared Java type to JSON text using JDBC {@code setString} and {@code getString}.
+ * The same declared type is used for writing and reading, including generic arguments.
+ * The database column and driver must accept string binding; database-specific JSON types
+ * may require explicit SQL casts or a different handler.
  *
- * @param <T> The type of object returned by the mapper methods
- * @param <J> The type of the JSON operator
+ * <p>SQL {@code NULL} is returned as Java null without invoking JSON deserialization.
+ * Non-null column contents, including the JSON literal {@code null}, are passed to the backend.
+ * Null parameters are handled by {@link BaseTypeHandler#setParameter} using the supplied JDBC type.
+ * Empty or malformed non-null text is handled by the backend and is not treated as SQL {@code NULL}.
+ * Direct calls to the methods declared here propagate JDBC and JSON failures; inherited
+ * {@code setParameter} and {@code getResult} calls add MyBatis parameter or result context.
+ *
+ * @param <T> the declared Java value type
  * @author allurx
  */
-public abstract class AbstractJsonTypeHandler<T, J> extends BaseTypeHandler<T> {
+public abstract class AbstractJsonTypeHandler<T> extends BaseTypeHandler<T> {
 
     /**
-     * JSON operator used for serialization and deserialization
+     * Serialization and deserialization configuration for the stored JSON format.
      */
-    private final JsonOperator<J> jsonOperator;
+    private final JsonOperation jsonOperation;
 
     /**
-     * The type of the object to be handled
+     * Declared read and write type, retaining generic arguments independently of registry lookup.
      */
-    private final Type type;
+    private final TypeToken<T> type;
 
     /**
-     * Constructor.
+     * Creates a handler for a concrete target class.
      *
-     * @param jsonOperator The {@link JsonOperator} used for JSON operations
-     * @param type         The {@link #type} of the object to be handled
+     * @param jsonOperation the non-null JSON operations
+     * @param type the non-null target class
+     * @throws NullPointerException if either argument is null
      */
-    public AbstractJsonTypeHandler(JsonOperator<J> jsonOperator, Type type) {
-        this.jsonOperator = jsonOperator;
-        this.type = type;
+    protected AbstractJsonTypeHandler(JsonOperation jsonOperation, Class<T> type) {
+        this(jsonOperation, TypeToken.of(Objects.requireNonNull(type, "type")));
     }
 
+    /**
+     * Creates a handler for a target type captured by a token, retaining any generic arguments.
+     *
+     * @param jsonOperation the non-null JSON operations
+     * @param type the non-null target type, including its generic arguments
+     * @throws NullPointerException if either argument is null
+     */
+    protected AbstractJsonTypeHandler(JsonOperation jsonOperation, TypeToken<T> type) {
+        this.jsonOperation = Objects.requireNonNull(jsonOperation, "jsonOperation");
+        this.type = Objects.requireNonNull(type, "type");
+    }
+
+    /**
+     * Registers this instance using the constructor's target type instead of MyBatis's generic-type inference.
+     * Use this method instead of {@code registry.register(handler)} for programmatic registration.
+     * Parameterized targets register under their raw class; generic arguments remain available for JSON operations.
+     * For example, {@code List<Person>} and {@code List<Address>} share the {@code List.class} key,
+     * so registry lookup cannot distinguish their element types.
+     *
+     * <p>MyBatis honors {@link org.apache.ibatis.type.MappedJdbcTypes} on the handler class;
+     * without that annotation, registration uses the null JDBC-type key. Registering another handler
+     * for the same Java/JDBC-type pair replaces the previous mapping. Different JDBC-type mappings
+     * can coexist, but targets requiring different element types for the same JDBC type need explicit
+     * handler mappings or separate registries.
+     *
+     * @param registry the non-null registry to receive this handler
+     * @throws NullPointerException if the registry is null
+     */
+    public final void registerTo(TypeHandlerRegistry registry) {
+        registry.register(type.getRawClass(), this);
+    }
+
+    /**
+     * Serializes a non-null parameter with the declared type and binds the JSON text.
+     *
+     * @param ps the target statement
+     * @param i the one-based parameter index
+     * @param parameter the non-null Java value
+     * @param jdbcType the MyBatis JDBC type; string binding does not use it
+     * @throws SQLException if JDBC string binding fails
+     */
     @Override
     public void setNonNullParameter(PreparedStatement ps, int i, T parameter, JdbcType jdbcType) throws SQLException {
-        ps.setString(i, jsonOperator.toJsonString(parameter));
+        // Declared root and element types determine where the backend writes polymorphic type metadata.
+        ps.setString(i, jsonOperation.toJsonString(parameter, type.getType()));
     }
 
+    /**
+     * Reads a named column as JSON using the declared target type.
+     *
+     * @param rs the result set positioned on a row
+     * @param columnName the column label
+     * @return null for SQL {@code NULL}, otherwise the backend result, which may also be null
+     * @throws SQLException if JDBC string retrieval fails
+     */
     @Override
     public T getNullableResult(ResultSet rs, String columnName) throws SQLException {
-        return Optional.ofNullable(rs.getString(columnName))
-                .map(s -> jsonOperator.<T>fromJsonString(s, type))
-                .orElse(null);
+        return read(rs.getString(columnName));
     }
 
+    /**
+     * Reads an indexed column as JSON using the declared target type.
+     *
+     * @param rs the result set positioned on a row
+     * @param columnIndex the one-based column index
+     * @return null for SQL {@code NULL}, otherwise the backend result, which may also be null
+     * @throws SQLException if JDBC string retrieval fails
+     */
     @Override
     public T getNullableResult(ResultSet rs, int columnIndex) throws SQLException {
-        return Optional.ofNullable(rs.getString(columnIndex))
-                .map(s -> jsonOperator.<T>fromJsonString(s, type))
-                .orElse(null);
+        return read(rs.getString(columnIndex));
     }
 
+    /**
+     * Reads an output parameter as JSON using the declared target type.
+     *
+     * @param cs the executed callable statement
+     * @param columnIndex the one-based output parameter index
+     * @return null for SQL {@code NULL}, otherwise the backend result, which may also be null
+     * @throws SQLException if JDBC string retrieval fails
+     */
     @Override
     public T getNullableResult(CallableStatement cs, int columnIndex) throws SQLException {
-        return Optional.ofNullable(cs.getString(columnIndex))
-                .map(s -> jsonOperator.<T>fromJsonString(s, type))
-                .orElse(null);
+        return read(cs.getString(columnIndex));
     }
 
+    private T read(String json) {
+        return json == null ? null : jsonOperation.fromJsonString(json, type);
+    }
 }

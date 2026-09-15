@@ -1,4 +1,6 @@
 @echo off
+rem Manual example: opens Telegram and retains browser data in the user data directory below.
+rem Adjust the machine-specific path before use; this script is not an isolated test fixture.
 chcp 65001  
 start chrome.exe^
   "https://web.telegram.org/a/"^

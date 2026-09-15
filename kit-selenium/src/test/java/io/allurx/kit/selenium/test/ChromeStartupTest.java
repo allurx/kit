@@ -18,24 +18,32 @@ package io.allurx.kit.selenium.test;
 import io.allurx.kit.selenium.Chrome;
 import io.allurx.kit.selenium.Mode;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
+import org.junit.jupiter.api.io.TempDir;
 
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.LockSupport;
+import java.nio.file.Path;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 /**
+ * Verifies Chrome startup through the public API using a temporary profile.
+ * Enable with {@code -Dkit.selenium.chromePath=/path/to/chrome}.
+ *
  * @author allurx
  */
-public class TelegramTest {
+@EnabledIfSystemProperty(named = "kit.selenium.chromePath", matches = ".+")
+public class ChromeStartupTest {
 
     @Test
-    void testTelegram() {
+    @Timeout(60)
+    void startsChrome(@TempDir Path profile) {
         try (var chrome = Chrome.builder()
                 .mode(Mode.ATTACH)
-                .addArgs("--user-data-dir=D:\\chrome-user-data\\1-8502950634")
+                .chromePath(System.getProperty("kit.selenium.chromePath"))
+                .addArgs("--headless", "--user-data-dir=" + profile)
                 .build()) {
-            var webDriver = chrome.webDriver();
-            webDriver.get("https://web.telegram.org/a/");
-            LockSupport.parkNanos(TimeUnit.SECONDS.toNanos(3));
+            assertFalse(chrome.webDriver().getWindowHandles().isEmpty());
         }
     }
 }

@@ -32,14 +32,9 @@ import org.openjdk.jmh.infra.Blackhole;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Benchmark tests comparing native if-else constructs with the Conditional class implementation.
- * This class uses the JMH framework to measure throughput in operations per millisecond.
- * The test scenarios involve:
- * <ui>
- * <li>A standard if-else construct.</li>
- * <li>The Conditional implementation to handle the same logic.</li>
- * </ui>
- * Each test will run with several iterations of warmup and measurement to gather performance data.
+ * JMH throughput comparison of native branching and {@link Conditional}, in operations per millisecond.
+ * Both scenarios use constant-false predicates and select the final branch; results describe this
+ * specific workload and do not establish performance for arbitrary conditions or callbacks.
  *
  * @author allurx
  */
@@ -53,10 +48,9 @@ import java.util.concurrent.TimeUnit;
 public class ConditionalBenchmark {
 
     /**
-     * Native if-else construct for testing basic conditional logic performance.
-     * Simulates a simple conditional flow with multiple branches.
+     * Measures the native branching baseline for the final-branch workload.
      *
-     * @param blackhole Consumes the result to prevent JIT optimizations
+     * @param blackhole consumes the result to discourage dead-code elimination
      */
     @Benchmark
     public void testNativeConditional(Blackhole blackhole) {
@@ -72,10 +66,9 @@ public class ConditionalBenchmark {
     }
 
     /**
-     * Test using {@link Conditional} to handle the same conditional logic.
-     * Demonstrates how the Conditional API replaces standard if-else logic.
+     * Measures the fluent equivalent of the native final-branch workload.
      *
-     * @param blackhole Consumes the result to prevent JIT optimizations
+     * @param blackhole consumes the result to discourage dead-code elimination
      */
     @Benchmark
     public void testConditional(Blackhole blackhole) {

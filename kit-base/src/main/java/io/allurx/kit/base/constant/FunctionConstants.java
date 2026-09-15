@@ -21,7 +21,7 @@ import java.util.function.Predicate;
 import static io.allurx.kit.base.reflection.TypeConverter.uncheckedCast;
 
 /**
- * A collection of commonly used function constants.
+ * Shared, stateless functions. The predicates accept any input, including null.
  *
  * @author allurx
  */
@@ -57,20 +57,20 @@ public final class FunctionConstants {
     public static final Predicate<?> FALSE_PREDICATE = x -> false;
 
     /**
-     * Returns a {@link Predicate} that always evaluates to true.
+     * Returns the shared true predicate with a type compatible with the caller's input.
      *
      * @param <T> the type of the input to the predicate
-     * @return a predicate that always returns true
+     * @return {@link #TRUE_PREDICATE} typed for the caller
      */
     public static <T> Predicate<? super T> truePredicate() {
         return uncheckedCast(TRUE_PREDICATE);
     }
 
     /**
-     * Returns a {@link Predicate} that always evaluates to false.
+     * Returns the shared false predicate with a type compatible with the caller's input.
      *
      * @param <T> the type of the input to the predicate
-     * @return a predicate that always returns false
+     * @return {@link #FALSE_PREDICATE} typed for the caller
      */
     public static <T> Predicate<? super T> falsePredicate() {
         return uncheckedCast(FALSE_PREDICATE);

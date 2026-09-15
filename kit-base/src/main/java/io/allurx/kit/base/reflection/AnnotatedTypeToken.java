@@ -22,25 +22,17 @@ import java.lang.reflect.AnnotatedType;
 import java.lang.reflect.AnnotatedTypeVariable;
 import java.lang.reflect.AnnotatedWildcardType;
 import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
 
 /**
- * Captures annotations on various types at runtime, including generic parameters, arrays,
- * type variables, and wildcards.
- * <p>
- * This class allows the creation of an anonymous subclass to retrieve annotations on different
- * types at runtime, provided that the annotations' retention policy is set to
- * {@link RetentionPolicy#RUNTIME}.
- * </p>
- * <pre>
- *    {@code
- *      var annotatedTypeToken = new AnnotatedTypeToken<List<@MyAnnotation String>>() {};
- *      var annotatedType = annotatedTypeToken.getAnnotatedType();
- *      // Retrieves @MyAnnotation from the annotatedType for the generic type parameter.
- *    }
- * </pre>
+ * Captures a declared type and its {@link RetentionPolicy#RUNTIME} annotations through a direct subclass.
+ * Type variables and their annotated bounds are preserved without resolving call-site type arguments.
+ * <pre>{@code new AnnotatedTypeToken<List<@MyAnnotation String>>() {}.getAnnotatedType()}</pre>
  *
- * @param <T> The type whose annotations are captured
+ * <p>Annotations are available through {@link #getAnnotatedType()} and its nested annotated types.
+ * Inherited {@link #getType()} and {@link #getRawClass()} expose the underlying type without annotations.
+ * Equality and hashing delegate to the captured {@link AnnotatedType} implementation.
+ *
+ * @param <T> the type whose annotations are captured
  * @author allurx
  * @see AnnotatedType
  * @see ParameterizedType
@@ -54,19 +46,23 @@ public abstract class AnnotatedTypeToken<T> extends TypeToken<T> {
     private final AnnotatedType annotatedType;
 
     /**
-     * Captures the {@link AnnotatedType} of {@link T}.
-     * Currently, due to Java restrictions, {@link AnnotatedType#getType()} cannot be
-     * referenced before calling the superclass constructor. This may change with future
-     * Java language updates (e.g., JEP 447).
+     * Captures the annotated type argument of a direct subclass.
+     * Other inheritance structures must use {@link #AnnotatedTypeToken(AnnotatedType)}.
+     *
+     * @throws IllegalArgumentException if the runtime class is not a direct, parameterized subclass
      */
     protected AnnotatedTypeToken() {
-        this.annotatedType = capture();
+        // TypeToken validates the direct superclass before annotation capture.
+        var superclass = (AnnotatedParameterizedType) getClass().getAnnotatedSuperclass();
+        this.annotatedType = superclass.getAnnotatedActualTypeArguments()[0];
     }
 
     /**
-     * Constructs an {@code AnnotatedTypeToken} from a given {@link AnnotatedType}.
+     * Stores an explicit annotated type without inspecting the subclass hierarchy.
+     * The value is retained by reference; subclasses must ensure its underlying type agrees with {@code T}.
      *
      * @param annotatedType the annotated type
+     * @throws NullPointerException if annotatedType or its underlying type is null
      */
     protected AnnotatedTypeToken(AnnotatedType annotatedType) {
         super(annotatedType.getType());
@@ -74,13 +70,15 @@ public abstract class AnnotatedTypeToken<T> extends TypeToken<T> {
     }
 
     /**
-     * Creates an {@link AnnotatedTypeToken} for the specified annotated type.
+     * Creates a token from an annotated type known only at runtime.
+     * An {@link AnnotatedType} does not bind a compile-time type parameter, so the result uses a wildcard.
+     * Use an anonymous subclass to capture both a static generic type and its annotations.
      *
      * @param annotatedType the annotated type to capture
-     * @param <T>           the type to capture
-     * @return a new {@link AnnotatedTypeToken} instance
+     * @return a token preserving the supplied type and annotations without claiming a specific compile-time type
+     * @throws NullPointerException if annotatedType or its underlying type is null
      */
-    public static <T> AnnotatedTypeToken<T> of(AnnotatedType annotatedType) {
+    public static AnnotatedTypeToken<?> of(AnnotatedType annotatedType) {
         return new AnnotatedTypeToken<>(annotatedType) {
         };
     }
@@ -88,39 +86,53 @@ public abstract class AnnotatedTypeToken<T> extends TypeToken<T> {
     /**
      * Returns the captured {@link AnnotatedType}.
      *
-     * @return the annotated type of {@link T}
+     * @return the non-null annotated type, including annotations on generic arguments and bounds
      */
     public final AnnotatedType getAnnotatedType() {
         return annotatedType;
     }
 
+    /**
+     * Compares annotated types only with compatible annotated tokens.
+     * Plain tokens remain unequal even when no type annotations are present.
+     *
+     * @param o the object to compare
+     * @return whether both tokens have compatible equality semantics and equal annotated types
+     */
     @Override
     public boolean equals(Object o) {
-        return o instanceof AnnotatedTypeToken<?> target && annotatedType.equals(target.annotatedType);
+        return o instanceof AnnotatedTypeToken<?> target && target.canEqual(this) && annotatedType.equals(target.annotatedType);
     }
 
+    /**
+     * Accepts only annotated tokens because annotations participate in equality.
+     *
+     * @param o the other object
+     * @return whether the object is an annotated token
+     */
+    @Override
+    protected boolean canEqual(Object o) {
+        return o instanceof AnnotatedTypeToken<?>;
+    }
+
+    /**
+     * Returns the annotated type's hash code, consistent with annotated-type equality.
+     *
+     * @return the annotated type's hash code
+     */
     @Override
     public int hashCode() {
         return annotatedType.hashCode();
     }
 
+    /**
+     * Returns a diagnostic description of the captured annotated type.
+     *
+     * @return a description intended for display, not persistence or parsing
+     */
     @Override
     public String toString() {
         return "AnnotatedTypeToken{annotatedType=%s}".formatted(annotatedType);
     }
 
-    /**
-     * Captures the {@link AnnotatedType} of the generic type {@link T}.
-     *
-     * @return the captured annotated type
-     * @throws IllegalArgumentException if the type is not parameterized
-     */
-    private AnnotatedType capture() {
-        Class<?> clazz = getClass();
-        Type superclass = clazz.getGenericSuperclass();
-        if (!(superclass instanceof ParameterizedType)) {
-            throw new IllegalArgumentException("%s must be a parameterized type".formatted(superclass));
-        }
-        return ((AnnotatedParameterizedType) clazz.getAnnotatedSuperclass()).getAnnotatedActualTypeArguments()[0];
-    }
 }

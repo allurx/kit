@@ -16,109 +16,71 @@
 
 package io.allurx.kit.json;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.gson.Gson;
 import io.allurx.kit.base.reflection.TypeToken;
 
-import java.lang.reflect.Type;
-import java.util.function.Consumer;
+import java.util.Objects;
+import java.util.function.BiPredicate;
+import java.util.function.Function;
+import java.util.stream.IntStream;
 
 /**
- * Base class for JSON operators, implementing the {@link JsonOperator} interface,
- * providing basic JSON operation functionality.
+ * Shares backend access, class-to-token delegation, and short-circuit comparison flow.
+ * Subclasses implement the backend's serialization, conversion, and equality rules.
  *
- * @param <O> The specific type of JSON operator
- * @param <J> The type of the JSON processing entity, such as {@link ObjectMapper} or {@link Gson}
+ * @param <J> the backend type
  * @author allurx
  */
-public abstract class AbstractJsonOperator<O extends JsonOperator<J>, J> implements JsonOperator<J> {
+public abstract class AbstractJsonOperator<J> implements JsonOperator<J> {
 
     /**
-     * The current JSON operator instance, typically a self-reference,
-     * used for method chaining.
-     */
-    protected final O jsonOperator;
-
-    /**
-     * The entity responsible for performing JSON operations, such as {@link ObjectMapper} or {@link Gson}.
+     * The retained backend reference. A final reference does not make a custom backend immutable.
      */
     protected final J subject;
 
     /**
-     * Constructor to initialize the JSON operation entity.
+     * Creates an operator around an existing backend.
      *
-     * @param subject The entity responsible for JSON operations, cannot be null
+     * @param subject the backend, never null
+     * @throws NullPointerException if the backend is null
      */
-    @SuppressWarnings("unchecked")
-    public AbstractJsonOperator(J subject) {
-        if (subject == null) {
-            throw new IllegalArgumentException("The JSON operation entity cannot be null");
-        }
-        this.jsonOperator = (O) this;
-        this.subject = subject;
+    protected AbstractJsonOperator(J subject) {
+        this.subject = Objects.requireNonNull(subject, "subject");
     }
 
-    /**
-     * Configures the current JSON operation entity, allowing customization
-     * by passing a {@link Consumer}.
-     *
-     * @param consumer A {@link Consumer} to configure the JSON operation entity
-     * @return The current JSON operator instance for method chaining
-     */
-    @Override
-    public O configure(Consumer<J> consumer) {
-        consumer.accept(subject);
-        return jsonOperator;
-    }
-
-    /**
-     * Returns the current entity responsible for performing JSON operations.
-     *
-     * @return The JSON operation entity
-     */
     @Override
     public J subject() {
         return subject;
     }
 
-    /**
-     * Converts a JSON string to a Java object of the specified {@link TypeToken}.
-     *
-     * @param json      The JSON string
-     * @param typeToken The {@link TypeToken} representing the target type
-     * @param <T>       The target type
-     * @return The Java object converted from the JSON string
-     */
     @Override
-    public <T> T fromJsonString(String json, TypeToken<T> typeToken) {
-        return fromJsonString(json, typeToken.getType());
+    public <T> T fromJsonString(String json, Class<T> type) {
+        return fromJsonString(json, TypeToken.of(type));
+    }
+
+    @Override
+    public <T> T copyProperties(Object source, Class<T> type) {
+        return copyProperties(source, TypeToken.of(type));
     }
 
     /**
-     * Copies the properties from a source object to a target object of the specified type,
-     * using JSON serialization and deserialization for conversion.
+     * Parses the first input and compares each subsequent input with it until a mismatch occurs.
+     * A single input is parsed and then returns true without invoking the equality predicate.
+     * Inputs after the first mismatch are not parsed. Exceptions from parsing or comparison
+     * propagate to the caller.
      *
-     * @param source The source object
-     * @param type   The target object's {@link Type}
-     * @param <T>    The target object type
-     * @return The target object
+     * @param jsons the JSON strings to compare
+     * @param parser parses each visited JSON input once
+     * @param equality compares the first parsed value with a subsequent parsed value
+     * @param <N> the parsed value type
+     * @return whether all values are equivalent
+     * @throws IllegalArgumentException if no JSON strings are supplied
+     * @throws NullPointerException if the input array is null
      */
-    @Override
-    public <T> T copyProperties(Object source, Type type) {
-        return fromJsonString(toJsonString(source), type);
-    }
-
-    /**
-     * Copies the properties from a source object to a target object of the specified {@link TypeToken} type,
-     * using JSON serialization and deserialization for conversion.
-     *
-     * @param source    The source object
-     * @param typeToken The {@link TypeToken} representing the target type
-     * @param <T>       The target object type
-     * @return The target object
-     */
-    @Override
-    public <T> T copyProperties(Object source, TypeToken<T> typeToken) {
-        return fromJsonString(toJsonString(source), typeToken.getType());
+    protected final <N> boolean compare(String[] jsons, Function<String, N> parser, BiPredicate<N, N> equality) {
+        if (jsons.length == 0) {
+            throw new IllegalArgumentException("At least one JSON string is required");
+        }
+        N first = parser.apply(jsons[0]);
+        return IntStream.range(1, jsons.length).allMatch(i -> equality.test(first, parser.apply(jsons[i])));
     }
 }

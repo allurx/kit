@@ -18,260 +18,282 @@ package io.allurx.kit.selenium;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.ServerSocket;
-import java.net.Socket;
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.LockSupport;
-import java.util.stream.Collectors;
 
 /**
- * Represents a Chrome browser instance that can be controlled via WebDriver.
- * <p>
- * This class allows you to start and manage a Chrome browser instance, either by attaching to an
- * already running instance or by starting a new instance directly from WebDriver.
- * </p>
+ * Owns a WebDriver session and, in {@link Mode#ATTACH}, the Chrome process started by Kit.
+ * In {@link Mode#HOSTED}, ChromeDriver starts and manages Chrome.
+ * Use try-with-resources to release each successful build, including when browser operations fail.
  *
  * @author allurx
  */
 public final class Chrome implements AutoCloseable {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(Chrome.class);
+    private final WebDriver webDriver;
 
     /**
-     * Default Chrome startup arguments.
-     *
-     * @see <a href="https://peter.sh/experiments/chromium-command-line-switches/">chromium-command-line-switches</a>
+     * The process started by Kit, or {@code null} when ChromeDriver manages startup in HOSTED mode.
      */
-    private final List<String> defaultArgs = Arrays.stream(new String[]{
-            "--no-first-run",
-            "--start-maximized",
-            "--disable-extensions",
-            "--disable-gpu",
-            "--disable-software-rasterizer",
-            "--disable-background-networking",
-            "--disable-sync",
-            "--disable-translate",
-            "--disable-renderer-backgrounding",
-            "--disable-client-side-phishing-detection",
-            "--disable-hang-monitor",
-            "--disable-audio-output",
-            "--disable-accelerated-2d-canvas",
-            "--enable-low-end-device-mode",
-            "--enable-simple-cache-backend",
-            "--disable-quic",
-            "--disable-infobars",
-            "--disable-session-crashed-bubble",
-            "--disable-speech-api",
-            "--disable-save-password-bubble",
-            "--disable-notifications",
-    }).collect(Collectors.toList());
+    private final Process process;
 
-    private Chrome() {
+    /**
+     * Takes ownership of the resources created by one successful build.
+     *
+     * @param webDriver the established WebDriver session
+     * @param process the process started in ATTACH mode, or null in HOSTED mode
+     */
+    private Chrome(WebDriver webDriver, Process process) {
+        this.webDriver = webDriver;
+        this.process = process;
     }
 
-    private Mode mode;
-    private WebDriver webDriver;
-    private Process process;
-
     /**
-     * Returns the {@link WebDriver} instance controlling the Chrome browser.
+     * Returns the same owned session on every call for direct Selenium operations.
+     * Calling {@link WebDriver#close()} on it closes the current window; use {@link #close()}
+     * to quit the session and release this wrapper's process ownership.
      *
-     * @return the {@link WebDriver} instance
+     * @return the established WebDriver session
      */
     public WebDriver webDriver() {
         return webDriver;
     }
 
     /**
-     * Closes the Chrome browser and terminates any running processes.
-     * This method ensures that both the {@link WebDriver} instance and the Chrome process are properly closed.
+     * Quits the WebDriver session, then calls {@link Process#destroy()} on the process started in ATTACH mode.
+     * The process termination request runs even if {@link WebDriver#quit()} fails. This method does not
+     * enumerate descendants or wait for process exit; failed-startup cleanup has a separate, bounded wait.
+     * <p>
+     * Cleanup exceptions propagate without a {@link BrowserException} wrapper. If both operations fail,
+     * the first failure is thrown and the second is added as a suppressed exception.
+     * </p>
      */
     @Override
     public void close() {
+        Throwable failure = null;
         try {
-            Optional.ofNullable(webDriver).ifPresent(WebDriver::quit);
+            webDriver.quit();
+        } catch (RuntimeException | Error e) {
+            failure = e;
+            throw e;
         } finally {
-            Optional.ofNullable(process).ifPresent(Process::destroy);
+            if (process != null) {
+                try {
+                    process.destroy();
+                } catch (RuntimeException | Error e) {
+                    if (failure == null) {
+                        throw e;
+                    }
+                    if (e != failure) {
+                        failure.addSuppressed(e);
+                    }
+                }
+            }
         }
     }
 
     /**
-     * Creates a new {@link ChromeBuilder} to construct a {@link Chrome} instance.
+     * Creates a builder with the default browser arguments and no selected mode or executable.
      *
-     * @return a new {@link ChromeBuilder}
+     * @return a new mutable builder
      */
     public static ChromeBuilder builder() {
-        return new ChromeBuilder(new Chrome());
+        return new ChromeBuilder();
     }
 
     /**
-     * A builder class for constructing a {@link Chrome} instance.
+     * Mutable launch configuration for creating Chrome sessions.
      * <p>
-     * This builder allows configuration of Chrome startup parameters, communication modes, and more.
+     * Both {@link #mode(Mode)} and {@link #chromePath(String)} must be set before building.
+     * Each build uses the current arguments and creates a new WebDriver session; later configuration
+     * changes do not affect earlier sessions. Each returned instance must be closed separately.
+     * Reuse does not isolate a configured user data directory between sessions. This builder must not
+     * be used concurrently without external synchronization.
      * </p>
+     *
+     * @author allurx
      */
     public static class ChromeBuilder {
 
-        private final Chrome chrome;
+        private Mode mode;
+        private String chromePath;
 
         /**
-         * Constructs a new {@code ChromeBuilder} with the specified {@link Chrome} instance.
-         *
-         * @param chrome the {@link Chrome} instance to be used by this builder
+         * Browser arguments for future builds. ATTACH adds the executable and generated debugging port
+         * to a separate command list so failed attempts and builder reuse do not accumulate launch arguments.
          */
-        public ChromeBuilder(Chrome chrome) {
-            this.chrome = chrome;
+        private final List<String> arguments = new ArrayList<>(List.of(
+                "--no-first-run",
+                "--start-maximized",
+                "--disable-extensions",
+                "--disable-gpu",
+                "--disable-software-rasterizer",
+                "--disable-background-networking",
+                "--disable-sync",
+                "--disable-translate",
+                "--disable-renderer-backgrounding",
+                "--disable-client-side-phishing-detection",
+                "--disable-hang-monitor",
+                "--disable-audio-output",
+                "--disable-accelerated-2d-canvas",
+                "--enable-low-end-device-mode",
+                "--enable-simple-cache-backend",
+                "--disable-quic",
+                "--disable-infobars",
+                "--disable-session-crashed-bubble",
+                "--disable-speech-api",
+                "--disable-save-password-bubble",
+                "--disable-notifications"
+        ));
+
+        /**
+         * Creates an independent builder with the default browser arguments.
+         */
+        public ChromeBuilder() {
         }
 
         /**
-         * Adds Chrome startup arguments.
+         * Appends startup arguments in their supplied order, retaining duplicates.
+         * Each value is a separate argument; callers do not need to add shell quoting around paths.
          *
          * @param args Chrome startup arguments
-         * @return this {@link ChromeBuilder} instance
+         * @return the current ChromeBuilder instance for chaining
          */
         public ChromeBuilder addArgs(String... args) {
-            chrome.defaultArgs.addAll(Arrays.asList(args));
+            arguments.addAll(Arrays.asList(args));
             return this;
         }
 
         /**
-         * Removes Chrome startup arguments.
+         * Removes every occurrence of arguments that exactly match one of the supplied strings.
+         * This can also remove arguments enabled by default.
          *
          * @param args Chrome startup arguments
-         * @return this {@link ChromeBuilder} instance
+         * @return the current ChromeBuilder instance for chaining
          */
         public ChromeBuilder removeArgs(String... args) {
-            chrome.defaultArgs.removeAll(Arrays.asList(args));
+            arguments.removeAll(Arrays.asList(args));
             return this;
         }
 
         /**
-         * Sets the communication mode between {@link WebDriver} and the browser.
+         * Selects whether Kit or ChromeDriver starts the browser.
          *
-         * @param mode the communication mode, one of {@link Mode}
-         * @return this {@link ChromeBuilder} instance
+         * @param mode the browser startup mode, or {@code null} to clear the selection
+         * @return the current ChromeBuilder instance for chaining
          */
         public ChromeBuilder mode(Mode mode) {
-            chrome.mode = mode;
+            this.mode = mode;
             return this;
         }
 
         /**
-         * Finds an available port on the local machine.
+         * Sets the Chrome executable used in either startup mode.
+         * The path is checked by the process launcher or ChromeDriver during {@link #build()}.
+         *
+         * @param chromePath the path to the Chrome binary, preferably absolute; {@code null} clears the path
+         * @return the current ChromeBuilder instance for chaining
+         */
+        public ChromeBuilder chromePath(String chromePath) {
+            this.chromePath = chromePath;
+            return this;
+        }
+
+        /**
+         * Starts Chrome and creates a WebDriver session using the current configuration.
+         * Both mode and executable path are required. Each successful call creates a separately owned
+         * session without changing the builder configuration; the caller must close the returned instance.
          * <p>
-         * This port is used for remote debugging when {@link Mode#ATTACH} is selected.
+         * For ATTACH with regular Chrome 136+, supply {@code --user-data-dir=/path/to/dedicated-data}
+         * through {@link #addArgs(String...)}. The directory must differ from Chrome's default data directory;
+         * Chrome for Testing retains the earlier remote-debugging behavior. Concurrent ATTACH instances need
+         * separate user data directories. {@code --profile-directory} selects a profile within that directory
+         * and does not isolate concurrent browser instances.
          * </p>
-         *
-         * @return a random available port
-         */
-        private int findAvailablePort() {
-            try (ServerSocket serverSocket = new ServerSocket(0)) {
-                // Port number 0 means the OS will assign a random available port
-                return serverSocket.getLocalPort();
-            } catch (IOException e) {
-                LOGGER.error(e.getMessage(), e);
-                throw new RuntimeException(e);
-            }
-        }
-
-        /**
-         * Starts a process with the given {@link ProcessBuilder}.
          * <p>
-         * This method is used to start the Chrome process and wraps any checked exceptions.
+         * In {@link Mode#ATTACH}, Kit starts Chrome and uses a three-second deadline while probing its debugging
+         * port over loopback TCP before constructing ChromeDriver. The probe establishes TCP reachability,
+         * not endpoint identity or a usable debugging session. This deadline excludes process creation,
+         * ChromeDriver construction, failure cleanup, and the brief diagnostic wait after an early process exit.
+         * In {@link Mode#HOSTED}, ChromeDriver controls startup without this port probe.
          * </p>
-         *
-         * @param processBuilder the {@link ProcessBuilder} to use
-         * @return the started {@link Process}
-         */
-        private Process startProcess(ProcessBuilder processBuilder) {
-            try {
-                return processBuilder.start();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }
-
-        /**
-         * Checks whether Chrome has started successfully.
-         *
-         * @param port the port to check for remote debugging
-         * @return {@code true} if Chrome has started successfully, {@code false} otherwise
-         */
-        private boolean checkChromeStartupStatus(int port) {
-            try (var ignored = new Socket("127.0.0.1", port)) {
-                return true;
-            } catch (Exception e) {
-                return false;
-            }
-        }
-
-        /**
-         * Constructs and returns a {@link Chrome} instance based on the builder configuration.
+         * <p>
+         * ATTACH output is drained in the background; readiness failures include a bounded tail when available.
+         * Early process exit, timeout, and interruption produce a {@link BrowserStartupFailureException}
+         * retained as the cause of the construction exception. Interruption preserves the caller's interrupt flag.
+         * These failures, and a later failure to construct ChromeDriver, request forced termination of the
+         * process and its observed descendants, with a shared one-second exit-wait budget.
+         * Descendant snapshots are not atomic and may miss processes created or detached between observations.
+         * Caught cleanup runtime exceptions and exit timeouts are suppressed onto the original failure;
+         * asynchronous output-close I/O errors are logged.
+         * </p>
          *
          * @return a new {@link Chrome} instance
-         * @throws BrowserException if Chrome fails to start or an error occurs during construction
+         * @throws BrowserException if required configuration is missing, Chrome fails to start, or session
+         *                          construction fails; the original failure is retained as the cause
+         * @throws Error if an unrecoverable error occurs; it propagates without wrapping
+         * @see <a href="https://developer.chrome.com/blog/remote-debugging-port">Chrome remote debugging requirements</a>
          */
         public Chrome build() {
             try {
-                Optional.ofNullable(chrome.mode).orElseThrow(() -> new IllegalStateException("Chrome mode not set"));
-                switch (chrome.mode) {
-                    case ATTACH -> {
-
-                        // Start the Chrome process
-                        int port = findAvailablePort();
-                        chrome.defaultArgs.addFirst("chrome");
-                        chrome.defaultArgs.add("--remote-debugging-port=" + port);
-
-                        // First, start Chrome so that WebDriver can later establish a connection with it.
-                        // Note: For the same Chrome startup commands with --user-data-dir or --profile-directory.
-                        // For example:
-                        // chrome --user-data-dir=path1 --remote-debugging-port=1
-                        // chrome --user-data-dir=path1 --remote-debugging-port=2
-                        // Even if two different port numbers are specified, only one Chrome process will be started,
-                        // and one of the ports will inevitably fail to bind. Subsequently, WebDriver will not be able to
-                        // establish a connection with Chrome.
-                        // Summary:
-                        // At any given time, there will be only one Chrome process with the same --user-data-dir or
-                        // --profile-directory due to the design of Chrome itself.
-                        var process = startProcess(new ProcessBuilder(chrome.defaultArgs));
-
-                        // Wait for Chrome to start
-                        LockSupport.parkNanos(TimeUnit.SECONDS.toNanos(3));
-
-                        // Check if Chrome started successfully
-                        if (checkChromeStartupStatus(port)) {
-                            // Attach WebDriver to the running Chrome process
-                            var options = new ChromeOptions();
-                            options.setExperimentalOption("debuggerAddress", "127.0.0.1:" + port);
-                            chrome.webDriver = new ChromeDriver(options);
-                            chrome.process = process;
-                        } else {
-                            var errorMessage = new StringBuilder();
-                            try (var reader = process.errorReader()) {
-                                String line;
-                                while ((line = reader.readLine()) != null) {
-                                    errorMessage.append(line).append(System.lineSeparator());
-                                }
-                            }
-                            throw new BrowserStartupFailureException("Chrome startup failed: " + errorMessage);
-                        }
-                    }
-                    case HOSTED -> {
-                        var options = new ChromeOptions().addArguments(chrome.defaultArgs);
-                        chrome.webDriver = new ChromeDriver(options);
-                    }
-                }
-            } catch (Throwable t) {
-                throw new BrowserException("Chrome construction failed", t);
+                validateConfiguration();
+                return switch (mode) {
+                    case ATTACH -> buildAttached();
+                    case HOSTED -> buildHosted();
+                };
+            } catch (IOException | RuntimeException failure) {
+                throw new BrowserException("Chrome construction failed", failure);
             }
-            return chrome;
+        }
+
+        private void validateConfiguration() {
+            if (mode == null) {
+                throw new IllegalStateException("Chrome mode not set");
+            }
+            if (chromePath == null) {
+                throw new IllegalStateException("Chrome Path not set");
+            }
+        }
+
+        private Chrome buildAttached() throws IOException {
+            int port = findAvailablePort();
+            var command = new ArrayList<>(arguments);
+            command.addFirst(chromePath);
+            command.add("--remote-debugging-port=" + port);
+
+            var descendants = new HashSet<ProcessHandle>();
+            var process = new ProcessBuilder(command).redirectErrorStream(true).start();
+            try {
+                ChromeStartup.await(process, port, Duration.ofSeconds(3), descendants);
+                var options = new ChromeOptions();
+                options.setBinary(chromePath);
+                options.setExperimentalOption("debuggerAddress", "127.0.0.1:" + port);
+                // Ownership transfers only after the complete startup and driver construction succeed.
+                return new Chrome(new ChromeDriver(options), process);
+            } catch (RuntimeException | Error failure) {
+                ChromeStartup.terminate(process, descendants, failure);
+                throw failure;
+            }
+        }
+
+        private Chrome buildHosted() {
+            var options = new ChromeOptions()
+                    .setBinary(chromePath)
+                    .addArguments(arguments);
+            return new Chrome(new ChromeDriver(options), null);
+        }
+
+        // Releasing this reservation leaves a race before Chrome binds the candidate port.
+        private int findAvailablePort() throws IOException {
+            try (var socket = new ServerSocket(0)) {
+                return socket.getLocalPort();
+            }
         }
     }
 }

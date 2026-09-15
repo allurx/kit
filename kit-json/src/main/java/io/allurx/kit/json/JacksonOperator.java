@@ -16,38 +16,54 @@
 
 package io.allurx.kit.json;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import io.allurx.kit.base.reflection.TypeToken;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectReader;
+import tools.jackson.databind.cfg.JsonNodeFeature;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.lang.reflect.Type;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
-import java.util.stream.IntStream;
 
 /**
- * JSON operations using the Jackson library.
+ * JSON operations backed by a retained Jackson {@link JsonMapper}.
+ * Property copying uses {@code convertValue} in memory rather than a JSON string round trip.
+ * Jackson failures are wrapped in {@link JsonException}; {@link IllegalArgumentException} from
+ * property conversion is wrapped as well. Other argument errors retain the backend's exception type.
  *
  * @author allurx
  */
-public class JacksonOperator extends AbstractJsonOperator<JacksonOperator, ObjectMapper> {
+public class JacksonOperator extends AbstractJsonOperator<JsonMapper> {
 
     /**
-     * Constructor.
-     *
-     * @param objectMapper An instance of {@link ObjectMapper}
+     * Reads exact, normalized decimals for comparison without changing the backend.
      */
-    public JacksonOperator(ObjectMapper objectMapper) {
-        super(objectMapper);
+    private final ObjectReader comparisonReader;
+
+    /**
+     * Creates an operator around the supplied mapper without copying it.
+     * A separate reader enables precise decimal comparison without changing mapper settings
+     * used by serialization, deserialization, or property conversion.
+     *
+     * @param jsonMapper the non-null Jackson backend
+     * @throws NullPointerException if the backend is null
+     */
+    public JacksonOperator(JsonMapper jsonMapper) {
+        super(jsonMapper);
+        comparisonReader = jsonMapper.reader().withFeatures(
+                JsonNodeFeature.USE_BIG_DECIMAL_FOR_FLOATS,
+                JsonNodeFeature.STRIP_TRAILING_BIGDECIMAL_ZEROES);
     }
 
     @Override
-    public JacksonOperator with(Supplier<ObjectMapper> supplier) {
+    public JacksonOperator with(Supplier<JsonMapper> supplier) {
         return new JacksonOperator(supplier.get());
     }
 
     @Override
-    public JacksonOperator with(UnaryOperator<ObjectMapper> unaryOperator) {
+    public JacksonOperator with(UnaryOperator<JsonMapper> unaryOperator) {
         return new JacksonOperator(unaryOperator.apply(subject));
     }
 
@@ -55,36 +71,84 @@ public class JacksonOperator extends AbstractJsonOperator<JacksonOperator, Objec
     public String toJsonString(Object source) {
         try {
             return subject.writeValueAsString(source);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new JsonException(e.getMessage(), e);
         }
     }
 
     @Override
-    public <T> T fromJsonString(String json, Type type) {
+    public String toJsonString(Object source, Type type) {
         try {
-            return subject.readValue(json, subject.getTypeFactory().constructType(type));
-        } catch (JsonProcessingException e) {
+            return subject.writerFor(subject.constructType(type)).writeValueAsString(source);
+        } catch (JacksonException e) {
             throw new JsonException(e.getMessage(), e);
         }
     }
 
     @Override
-    public boolean compare(String... jsons) {
-        JsonNode first = readTree(jsons[0]);
-        return IntStream.range(1, jsons.length).allMatch(i -> first.equals(readTree(jsons[i])));
+    public Object fromJsonString(String json, Type type) {
+        try {
+            return subject.readValue(json, subject.constructType(type));
+        } catch (JacksonException e) {
+            throw new JsonException(e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public <T> T fromJsonString(String json, TypeToken<T> typeToken) {
+        try {
+            return subject.readValue(json, subject.constructType(typeToken.getType()));
+        } catch (JacksonException e) {
+            throw new JsonException(e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public Object copyProperties(Object source, Type type) {
+        try {
+            return subject.convertValue(source, subject.constructType(type));
+        } catch (JacksonException | IllegalArgumentException e) {
+            throw new JsonException(e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public <T> T copyProperties(Object source, TypeToken<T> typeToken) {
+        try {
+            return subject.convertValue(source, subject.constructType(typeToken.getType()));
+        } catch (JacksonException | IllegalArgumentException e) {
+            throw new JsonException(e.getMessage(), e);
+        }
     }
 
     /**
-     * Parses a JSON string into a JSON tree.
+     * {@inheritDoc}
+     * <p>Compares exact decimal values after stripping trailing zeros; signed decimal zeros compare equal.
+     * For example, {@code 1.0} equals {@code 1e0}, but integer {@code 1} remains distinct from both.
+     * All other equality rules use {@link JsonNode#equals(Object)}.
+     * Other parsing settings, including trailing-token handling, follow this mapper.
+     * Empty or whitespace-only input is represented by Jackson's missing node and compares equal
+     * to other empty inputs, but not to the JSON literal {@code null}.
      *
-     * @param json The JSON string to parse
-     * @return The resulting JSON tree
+     * @throws JsonException if Jackson reports a parsing error
+     * @throws NumberFormatException if a decimal exceeds {@code BigDecimal}'s range
+     * @throws IllegalArgumentException if a visited input is null or no inputs are supplied
+     */
+    @Override
+    public boolean compare(String... jsons) {
+        return compare(jsons, this::readTree, JsonNode::equals);
+    }
+
+    /**
+     * Parses a tree using the comparison reader.
+     *
+     * @param json the JSON string to parse
+     * @return the resulting tree, including a missing node for empty input
      */
     private JsonNode readTree(String json) {
         try {
-            return subject.readTree(json);
-        } catch (JsonProcessingException e) {
+            return comparisonReader.readTree(json);
+        } catch (JacksonException e) {
             throw new JsonException(e.getMessage(), e);
         }
     }

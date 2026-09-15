@@ -24,47 +24,40 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
- * A Poller implementation that limits polling attempts based on a specified time duration and interval.
- * Polling stops either when the time duration expires or the termination condition is satisfied.
- * Supports custom sleeping behavior between polling attempts.
- * <p>Example usage of {@code IntervalBasedPoller}.</p>
+ * Repeats attempts within a clock-based duration, sleeping a fixed interval after unsuccessful attempts.
+ * The interval starts after the callbacks finish; it is not a fixed-rate schedule.
  *
- * <pre>
- * {@code
+ * <p>
+ * Unless the current thread is already interrupted, the first attempt runs immediately, even with zero duration.
+ * Polling stops when the termination condition is satisfied, the thread is interrupted, or no time remains.
+ * The poller does not clear the interrupt flag; {@link Sleeper#DEFAULT} also preserves it.
+ * Observed interruption returns the last result and actual attempt count.
+ * If interrupted before the first attempt, the result is null and the count is zero.
+ * After sleeping, another attempt is allowed only if the clock check is strictly before the deadline.
+ * Polling can finish before the deadline when a full sleep interval would extend beyond it.
+ * This is not a hard timeout: callbacks are not interrupted, and a sleep may finish late.
+ * Callback execution time counts toward the duration. Clock adjustments affect the deadline.
+ *
+ * <pre>{@code
  * IntervalBasedPoller poller = IntervalBasedPoller.builder()
  *         .timing(Duration.ofSeconds(3), Duration.ofMillis(300))
  *         .build();
  *
  * var ai = new AtomicInteger(0);
- * var num = poller.poll(() -> ai,AtomicInteger::incrementAndGet,i -> i == 6).get();
- *
- * // The final result should be 6 if the polling was successful.
- * System.out.println("Final result: " + num);
- * }
- * </pre>
+ * var result = poller.poll(() -> ai, AtomicInteger::incrementAndGet, i -> i == 6);
+ * // Inspect result.get(): reaching the time limit does not imply success.
+ * }</pre>
  *
  * @author allurx
  */
 public class IntervalBasedPoller extends BasePoller {
 
-    /**
-     * The clock used to track the polling duration.
-     */
     private final Clock clock;
 
-    /**
-     * The total duration allowed for polling.
-     */
     private final Duration duration;
 
-    /**
-     * The interval between each polling attempt.
-     */
     private final Duration interval;
 
-    /**
-     * The sleeper used to pause between polling attempts.
-     */
     private final Sleeper sleeper;
 
     private IntervalBasedPoller(IntervalBasedPollerBuilder builder) {
@@ -75,27 +68,33 @@ public class IntervalBasedPoller extends BasePoller {
         this.sleeper = builder.sleeper;
     }
 
+    /**
+     * {@inheritDoc}
+     * The function and predicate are validated even if the thread is already interrupted.
+     * The supplier is validated only when an attempt starts.
+     */
     @Override
     public <A, B> PollResult<B> poll(Supplier<? extends A> supplier,
                                      Function<? super A, ? extends B> function,
                                      Predicate<? super B> predicate) {
         check(function, predicate);
         int cnt = 0;
-        B result;
+        B result = null;
         Instant endInstant = clock.instant().plus(duration);
-        while (true) {
+        do {
+            if (Thread.currentThread().isInterrupted()) break;
 
             cnt++;
 
-            // Break if predicate is satisfied after executing function
-            if (predicate.test(result = execute(supplier.get(), function))) break;
+            // Check the termination condition after each attempt, including an ignored failure.
+            if (predicate.test(result = execute(supplier, function))) break;
 
-            // Break if current time plus interval is after endInstant
-            if (clock.instant().plus(interval).isAfter(endInstant)) break;
+            // Do not sleep after cancellation or when the next interval exceeds the deadline.
+            if (Thread.currentThread().isInterrupted() || clock.instant().plus(interval).isAfter(endInstant)) break;
 
-            // Sleep for the specified interval
+            // Sleep may resume late, so recheck the deadline before another attempt.
             sleeper.sleep(interval);
-        }
+        } while (clock.instant().isBefore(endInstant));
         return new PollResult<>(cnt, result);
     }
 
@@ -109,13 +108,15 @@ public class IntervalBasedPoller extends BasePoller {
     }
 
     /**
-     * IntervalBasedPollerBuilder is used to build a {@link IntervalBasedPoller}, which polls
-     * at regular intervals for a specified duration.
+     * Configures a duration-limited poller. Defaults to the system clock, zero duration,
+     * zero interval and {@link Sleeper#DEFAULT}, allowing one immediate attempt unless interrupted.
+     *
+     * @author allurx
      */
     public static class IntervalBasedPollerBuilder extends BasePollerBuilder<IntervalBasedPollerBuilder> {
 
         /**
-         * Default constructor
+         * Creates a builder with the default single-attempt timing configuration.
          */
         public IntervalBasedPollerBuilder() {
         }
@@ -127,10 +128,13 @@ public class IntervalBasedPoller extends BasePoller {
 
         /**
          * Configures the polling to use the system clock, with the specified duration and interval.
+         * Both durations may be zero. Invalid arguments leave the current timing configuration unchanged.
          *
-         * @param duration the total time to continue polling
-         * @param interval the time between polling attempts
+         * @param duration the non-negative total time to continue polling
+         * @param interval the non-negative time between polling attempts
          * @return the builder instance for chaining
+         * @throws NullPointerException if duration or interval is null
+         * @throws IllegalArgumentException if duration or interval is negative
          */
         public IntervalBasedPollerBuilder timing(Duration duration, Duration interval) {
             return timing(Clock.systemDefaultZone(), duration, interval);
@@ -138,24 +142,41 @@ public class IntervalBasedPoller extends BasePoller {
 
         /**
          * Configures the polling to use a custom clock, with the specified duration and interval.
+         * Both durations may be zero. Invalid arguments leave the current timing configuration unchanged.
+         * The clock must advance for a positive duration to expire. If a full interval fits,
+         * a fixed clock can keep polling indefinitely unless the predicate matches or the thread is interrupted.
+         * Tests can instead supply a controllable clock and a sleeper that advances it.
          *
          * @param clock    the clock to use for timing
-         * @param duration the total time to continue polling
-         * @param interval the time between polling attempts
+         * @param duration the non-negative total time to continue polling
+         * @param interval the non-negative time between polling attempts
          * @return the builder instance for chaining
+         * @throws NullPointerException if clock, duration, or interval is null
+         * @throws IllegalArgumentException if duration or interval is negative
          */
         public IntervalBasedPollerBuilder timing(Clock clock, Duration duration, Duration interval) {
-            this.clock = Objects.requireNonNull(clock, "The clock must not be null");
-            this.duration = Objects.requireNonNull(duration, "The duration must not be null");
-            this.interval = Objects.requireNonNull(interval, "The interval must not be null");
+            Objects.requireNonNull(clock, "The clock must not be null");
+            Objects.requireNonNull(duration, "The duration must not be null");
+            Objects.requireNonNull(interval, "The interval must not be null");
+            if (duration.isNegative()) {
+                throw new IllegalArgumentException("The duration must not be negative");
+            }
+            if (interval.isNegative()) {
+                throw new IllegalArgumentException("The interval must not be negative");
+            }
+            this.clock = clock;
+            this.duration = duration;
+            this.interval = interval;
             return this;
         }
 
         /**
-         * Sets the sleeper that will pause between polling attempts.
+         * Sets the sleeper invoked between unsuccessful attempts.
+         * Its exceptions propagate; it should preserve the interrupt flag when interrupted.
          *
          * @param sleeper the custom sleeper to use
          * @return the builder instance for chaining
+         * @throws NullPointerException if sleeper is null
          */
         public IntervalBasedPollerBuilder sleeper(Sleeper sleeper) {
             this.sleeper = Objects.requireNonNull(sleeper, "The sleeper must not be null");

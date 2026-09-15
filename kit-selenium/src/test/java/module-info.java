@@ -14,14 +14,13 @@
  * limitations under the License.
  */
 /**
- * selenium test module
+ * Opt-in Chrome startup test using the public API.
  *
  * @author allurx
  */
 module io.allurx.kit.selenium.test {
     requires io.allurx.kit.selenium;
     requires org.junit.jupiter.api;
-    requires org.seleniumhq.selenium.api;
     exports io.allurx.kit.selenium.test;
     opens io.allurx.kit.selenium.test;
 }

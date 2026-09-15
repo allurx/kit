@@ -22,30 +22,24 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
- * A Poller implementation that limits the number of polling attempts.
- * Polling stops either when the specified maximum count is reached or the termination condition is satisfied.
- * <p>Example usage of CountBasedPoller.</p>
- * <pre>
- * {@code
+ * Repeats attempts without a delay until the predicate matches or the positive attempt limit is reached.
+ * Ignored failures count toward the limit and pass null to the predicate.
+ * This poller does not check the thread's interrupt flag; callbacks can implement their own cancellation.
+ *
+ * <pre>{@code
  * CountBasedPoller poller = CountBasedPoller.builder()
  *         .count(20)
  *         .build();
  *
  * var ai = new AtomicInteger(0);
- * var num = poller.poll(() -> ai,AtomicInteger::incrementAndGet, i -> i == 6).get();
- *
- * // The final result should be 6 if the polling was successful.
- * System.out.println("Final result: " + num);
- * }
- * </pre>
+ * var result = poller.poll(() -> ai, AtomicInteger::incrementAndGet, i -> i == 6);
+ * // result.count() == 6 and result.get() == 6
+ * }</pre>
  *
  * @author allurx
  */
 public class CountBasedPoller extends BasePoller {
 
-    /**
-     * The maximum number of polling attempts.
-     */
     private final int count;
 
     private CountBasedPoller(CountBasedPollerBuilder builder) {
@@ -53,6 +47,11 @@ public class CountBasedPoller extends BasePoller {
         this.count = builder.count;
     }
 
+    /**
+     * {@inheritDoc}
+     * The function and predicate are validated before the first attempt;
+     * the supplier is validated when that attempt starts.
+     */
     @Override
     public <A, B> PollResult<B> poll(Supplier<? extends A> supplier,
                                      Function<? super A, ? extends B> function,
@@ -62,7 +61,7 @@ public class CountBasedPoller extends BasePoller {
         B result = null;
         for (int i = 0; i < count; i++) {
             cnt++;
-            if (predicate.test(result = execute(supplier.get(), function))) break;
+            if (predicate.test(result = execute(supplier, function))) break;
         }
         return new PollResult<>(cnt, result);
     }
@@ -77,17 +76,21 @@ public class CountBasedPoller extends BasePoller {
     }
 
     /**
-     * CountBasedPollerBuilder is used to build a {@link CountBasedPoller} which performs polling
-     * for a maximum number of iterations.
+     * Configures an attempt-limited poller. A positive count must be set before building.
+     *
+     * @author allurx
      */
     public static class CountBasedPollerBuilder extends BasePollerBuilder<CountBasedPollerBuilder> {
 
         /**
-         * Default constructor
+         * Creates a builder with no polling count configured.
          */
         public CountBasedPollerBuilder() {
         }
 
+        /**
+         * The configured maximum count, or zero until {@link #count(int)} is called successfully.
+         */
         private int count;
 
         /**
@@ -99,20 +102,24 @@ public class CountBasedPoller extends BasePoller {
          * @throws IllegalArgumentException if the count is less than or equal to 0
          */
         public CountBasedPollerBuilder count(int count) {
-            return Conditional.of(this)
+            Conditional.of(this)
                     .when(count > 0)
                     .consume(builder -> builder.count = count)
                     .orElse()
-                    .throwIt(() -> new IllegalArgumentException("The maximum number of polling attempts must be greater than 0. Provided value: %s".formatted(count)))
-                    .get();
+                    .throwIt(() -> new IllegalArgumentException("The maximum number of polling attempts must be greater than 0. Provided value: %s".formatted(count)));
+            return this;
         }
 
         /**
          * Builds and returns a new {@link CountBasedPoller} instance.
          *
          * @return a new CountBasedPoller instance
+         * @throws IllegalStateException if no positive count has been configured
          */
         public CountBasedPoller build() {
+            if (count <= 0) {
+                throw new IllegalStateException("A positive maximum polling count must be configured before building");
+            }
             return new CountBasedPoller(this);
         }
     }

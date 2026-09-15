@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 /**
- * base test module
+ * Tests for base utilities and separate JMH benchmarks for conditional flows.
  *
  * @author allurx
  */
