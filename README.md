@@ -34,8 +34,8 @@ and copy the Maven dependency declaration for the version you want to use.
 Use Maven 3.9.x and JDK 25+ to run `mvn verify` from the repository root.
 Run `mvn install` when other local projects need the updated Kit artifacts.
 The real Chrome startup test is opt-in; read [kit-selenium/AGENTS.md](kit-selenium/AGENTS.md)
-before browser tests. See [CI and releases](docs/ci-cd.md) for native IDEA Maven actions,
-automatic verification, and release setup and recovery.
+before browser tests. See [CI and releases](docs/ci-cd.md) for Kit's verification and
+release conventions and links to the shared workflow documentation.
 
 ## License
 

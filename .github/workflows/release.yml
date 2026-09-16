@@ -1,138 +1,19 @@
 name: Release
-
 on:
   push:
-    tags: ['v*.*.*']
-
+    tags: ['v*']
 permissions:
   contents: read
-
 concurrency:
-  group: release-${{ github.ref }}
+  group: maven-central-release
   cancel-in-progress: false
-
-defaults:
-  run:
-    shell: bash
-
-env:
-  RELEASE_TAG: ${{ github.ref_name }}
-
+  queue: max
 jobs:
-  publish:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 60
-    environment: maven-central
-    outputs:
-      version: ${{ steps.release.outputs.version }}
-      commit: ${{ steps.release.outputs.commit }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.sha }}
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
-        with:
-          distribution: temurin
-          java-version: '25'
-          cache: maven
-          server-id: central
-          server-username-env-var: CENTRAL_USERNAME
-          server-password-env-var: CENTRAL_PASSWORD
-          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
-          gpg-passphrase-env-var: MAVEN_GPG_PASSPHRASE
-      - name: Verify toolchain
-        run: |
-          # 核对执行发布的 Maven 和 JDK 版本。
-          mvn -version
-      - name: Validate release coordinates and tag
-        id: release
-        run: |
-          # 仅接受正式版本，避免将预发布或拼写错误的 tag 当作正式发布。
-          if [[ ! $RELEASE_TAG =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
-            echo "A stable vMAJOR.MINOR.PATCH tag is required" >&2
-            exit 1
-          fi
-
-          # 正式 tag 必须是 annotated tag，并指向已合入 main 的本次提交。
-          commit=$(git rev-parse HEAD)
-          test "$(git cat-file -t "refs/tags/$RELEASE_TAG")" = tag
-          test "$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")" = "$commit"
-          git merge-base --is-ancestor "$commit" origin/main
-
-          # 通过 Maven 模型核对所有模块的版本；这些查询不会编译或运行测试。
-          # Help 插件版本统一由根 POM 管理，子模块继承该配置。
-          for pom in pom.xml kit-base/pom.xml kit-json/pom.xml kit-mybatis/pom.xml kit-selenium/pom.xml; do
-            version=$(mvn -B -ntp -q -N -f "$pom" help:evaluate \
-              -Dexpression=project.version -DforceStdout)
-            test "$version" = "${RELEASE_TAG#v}" || { echo "Version mismatch in $pom: $version" >&2; exit 1; }
-          done
-
-          # 传递已校验的版本和提交，供后续独立的 Release job 使用。
-          printf 'version=%s\ncommit=%s\n' "${RELEASE_TAG#v}" "$commit" >> "$GITHUB_OUTPUT"
-      - name: Build, test, sign and publish once
-        env:
-          CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
-          CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
-          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-        run: |
-          # 一个 Maven 生命周期完成测试、打包和签名，并等待 Central 发布完成。
-          # bash 的 pipefail 会保留 Maven 的失败状态，同时将发布日志归档。
-          mvn -B -ntp -Prelease \
-            -DautoPublish=true -DwaitUntil=published -Dgpg.bestPractices=true \
-            "-Dproject.build.outputTimestamp=$(git show -s --format=%ct HEAD)" \
-            clean deploy | tee "$RUNNER_TEMP/maven-deploy.log"
-      - name: Preserve release logs and reports
-        if: always()
-        # 归档故障不改变 Maven 发布结果，避免因报告上传失败而再次 deploy。
-        continue-on-error: true
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: release-reports-${{ github.run_attempt }}
-          path: |
-            ${{ runner.temp }}/maven-deploy.log
-            **/target/surefire-reports/**
-          retention-days: 90
-
-  github-release:
-    needs: publish
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
+  release:
     permissions:
       contents: write
-    env:
-      GH_TOKEN: ${{ github.token }}
-      GH_REPO: ${{ github.repository }}
-      KIT_VERSION: ${{ needs.publish.outputs.version }}
-      RELEASE_COMMIT: ${{ needs.publish.outputs.commit }}
-    steps:
-      - name: Verify public Maven Central artifacts
-        run: |
-          # 在独立 job 中确认消费者能下载各模块；失败后可单独重跑，不会重新上传。
-          for module in kit kit-base kit-json kit-mybatis kit-selenium; do
-            # 父模块仅发布 POM；库模块同时核对主 JAR、源码和 Javadoc。
-            suffixes=(.pom)
-            if [[ $module != kit ]]; then suffixes+=(.jar -sources.jar -javadoc.jar); fi
-            for suffix in "${suffixes[@]}"; do
-              # 对 Central 的短暂同步延迟保留有限重试，文件内容无需落盘。
-              curl --fail --silent --show-error --location \
-                --retry 12 --retry-all-errors --retry-delay 5 --retry-max-time 180 --max-time 30 \
-                "https://repo.maven.apache.org/maven2/io/allurx/kit/$module/$KIT_VERSION/$module-$KIT_VERSION$suffix" \
-                --output /dev/null
-            done
-          done
-      - name: Confirm the release tag
-        run: |
-          # 无需 checkout；直接核对远端 tag，防止给另一提交创建发布说明。
-          actual=$(git ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git" "refs/tags/$RELEASE_TAG^{}" | cut -f1)
-          test "$actual" = "$RELEASE_COMMIT"
-      - name: Create GitHub Release
-        run: |
-          # 重跑时保留已有 Release 的内容，仅在尚未创建时生成发布说明。
-          if gh release view "$RELEASE_TAG" --repo "$GH_REPO" >/dev/null 2>&1; then
-            echo "Release already exists; preserving its content."
-          else
-            gh release create "$RELEASE_TAG" --repo "$GH_REPO" --verify-tag \
-              --title "Release $RELEASE_TAG" --generate-notes
-          fi
+      actions: read
+    uses: allurx/allurx-build/.github/workflows/maven-central-release.yml@main
+    secrets: inherit
+    with:
+      tag: ${{ github.ref_name }}
