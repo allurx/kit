@@ -27,7 +27,9 @@ The `release` profile comes from [maven-parent](https://github.com/allurx/maven-
 ## Browser testing
 
 The [Chrome startup test](../kit-selenium/src/test/java/io/allurx/kit/selenium/test/ChromeStartupTest.java)
-uses a real headless browser in `ATTACH` mode with a temporary profile.
+uses a real headless browser in `ATTACH` mode with a temporary profile. It opens a local
+data URL and verifies navigation, text input and a button response without using an
+external website.
 Replace the example path with an installed Chrome executable:
 
 ```sh
@@ -36,7 +38,13 @@ mvn -pl kit-selenium -am "-Dkit.selenium.chromePath=/absolute/path/to/chrome" ve
 
 ### Notes
 
-- Without `kit.selenium.chromePath`, the test skips; browser startup remains unverified.
+- Without `kit.selenium.chromePath`, local runs skip the test; browser interaction remains unverified.
+- The independent `selenium` CI job uses the runner's installed Chrome and ChromeDriver,
+  supplies their executable paths explicitly and requires one passing test with no skips.
+  A missing executable, missing report or skipped test fails this job. Its Surefire reports
+  are retained as a separate workflow artifact. The ordinary Maven job remains unchanged.
+- To use an installed matching driver locally, also pass `-Dwebdriver.chrome.driver=/absolute/path/to/chromedriver`;
+  otherwise Selenium Manager resolves the driver.
 - Manual scripts in `kit-selenium/scripts/windows` are outside the tests and published JAR.
   Launch scripts use persistent profiles and external services.
 - `kill-chrome-and-driver.bat` terminates all Chrome and ChromeDriver processes by name.
