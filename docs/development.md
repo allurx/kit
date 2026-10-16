@@ -43,9 +43,6 @@ mvn -pl kit-selenium -am "-Dkit.selenium.chromePath=/absolute/path/to/chrome" ve
   supplies their executable paths explicitly and requires one passing test with no skips.
   A missing executable, missing report or skipped test fails this job. Its Surefire reports
   are retained as a separate workflow artifact. The ordinary Maven job remains unchanged.
-- Linux CI wraps the browser test command in
-  [`dbus-run-session`](https://dbus.freedesktop.org/doc/dbus-run-session.1.html),
-  giving Chrome an isolated session bus that terminates with the Maven process.
 - To use an installed matching driver locally, also pass `-Dwebdriver.chrome.driver=/absolute/path/to/chromedriver`;
   otherwise Selenium Manager resolves the driver.
 - Manual scripts in `kit-selenium/scripts/windows` are outside the tests and published JAR.

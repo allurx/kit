@@ -38,7 +38,7 @@ jobs:
           "$chrome" --version
           "$driver" --version
 
-          dbus-run-session -- mvn -B -ntp -pl kit-selenium -am \
+          mvn -B -ntp -pl kit-selenium -am \
             -Dtest=ChromeStartupTest -Dsurefire.failIfNoSpecifiedTests=false \
             "-Dkit.selenium.chromePath=$chrome" "-Dwebdriver.chrome.driver=$driver" verify
 

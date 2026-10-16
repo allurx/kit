@@ -217,7 +217,7 @@ public final class Chrome implements AutoCloseable {
          * and does not isolate concurrent browser instances.
          * </p>
          * <p>
-         * In {@link Mode#ATTACH}, Kit starts Chrome and uses a three-second deadline while probing its debugging
+         * In {@link Mode#ATTACH}, Kit starts Chrome and uses a 60-second deadline while probing its debugging
          * port over loopback TCP before constructing ChromeDriver. The probe establishes TCP reachability,
          * not endpoint identity or a usable debugging session. This deadline excludes process creation,
          * ChromeDriver construction, failure cleanup, and the brief diagnostic wait after an early process exit.
@@ -270,7 +270,7 @@ public final class Chrome implements AutoCloseable {
             var descendants = new HashSet<ProcessHandle>();
             var process = new ProcessBuilder(command).redirectErrorStream(true).start();
             try {
-                ChromeStartup.await(process, port, Duration.ofSeconds(3), descendants);
+                ChromeStartup.await(process, port, Duration.ofSeconds(60), descendants);
                 var options = new ChromeOptions();
                 options.setBinary(chromePath);
                 options.setExperimentalOption("debuggerAddress", "127.0.0.1:" + port);

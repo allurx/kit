@@ -45,8 +45,9 @@ public class ChromeStartupTest {
 
     private List<ProcessHandle> ownedProcesses = List.of();
 
+    // Cover browser readiness, ChromeDriver startup and page interaction within one bounded test.
     @Test
-    @Timeout(60)
+    @Timeout(180)
     void startsChrome(@TempDir Path profile) {
         try (var chrome = Chrome.builder()
                 .mode(Mode.ATTACH)

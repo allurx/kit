@@ -110,6 +110,8 @@ final class ChromeStartup {
                         throw new InterruptedException("Chrome startup interrupted");
                     }
                     if (System.nanoTime() - started < timeoutNanos && process.isAlive()) {
+                        LOGGER.debug("Chrome debugging port {} became ready after {} ms",
+                                port, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started));
                         return;
                     }
                 }
