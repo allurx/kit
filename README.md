@@ -44,7 +44,7 @@ use `mvn install` to make artifacts available to other local projects.
 See [development](docs/development.md) for focused builds, sources/Javadoc checks
 and the opt-in Chrome startup test.
 
-CI and releases use [allurx-build](https://github.com/allurx/allurx-build).
+CI and releases use [allurx-build](https://github.com/allurx/allurx-build). Dependency updates use the shared [Renovate policy](https://github.com/allurx/allurx-build/blob/main/docs/dependency-updates.md) and target `dev`.
 
 ## License
 

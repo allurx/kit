@@ -17,7 +17,7 @@ Verify the full reactor with sources and Javadoc, without signing or publishing:
 mvn -Prelease "-Dgpg.skip=true" clean verify
 ```
 
-The `release` profile comes from [maven-parent](https://github.com/allurx/maven-parent).
+The `release` profile comes from [maven-parent](https://github.com/allurx/allurx-build/tree/main/maven-parent).
 
 ### Notes
 
