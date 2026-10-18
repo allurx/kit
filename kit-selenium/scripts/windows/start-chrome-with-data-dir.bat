@@ -1,4 +1,7 @@
 @echo off
+rem Copyright 2024 allurx
+rem SPDX-License-Identifier: Apache-2.0
+
 rem Manual example: opens Telegram and retains browser data in the user data directory below.
 rem Adjust the machine-specific path before use; this script is not an isolated test fixture.
 chcp 65001  
