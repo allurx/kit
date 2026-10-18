@@ -1,5 +1,7 @@
 # Kit
 
+English | [简体中文](README.zh-CN.md)
+
 Java 25+ utilities with explicit JPMS modules.
 
 | Artifact | Purpose | Versions |
