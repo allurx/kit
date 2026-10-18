@@ -1,3 +1,8 @@
+<!--
+Copyright 2024 allurx
+SPDX-License-Identifier: Apache-2.0
+-->
+
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
@@ -5,13 +10,13 @@
     <parent>
         <groupId>io.allurx</groupId>
         <artifactId>maven-parent</artifactId>
-        <version>1.1.0</version>
+        <version>1.2.0</version>
         <relativePath/>
     </parent>
 
     <groupId>io.allurx.kit</groupId>
     <artifactId>kit</artifactId>
-    <version>3.0.2</version>
+    <version>3.0.3</version>
     <packaging>pom</packaging>
     <name>kit</name>
 
@@ -38,14 +43,6 @@
         <slf4j-api.version>2.0.20</slf4j-api.version>
     </properties>
 
-    <licenses>
-        <license>
-            <name>The Apache Software License, Version 2.0</name>
-            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
-            <distribution>repo</distribution>
-        </license>
-    </licenses>
-
     <scm>
         <url>https://github.com/allurx/kit</url>
         <connection>scm:git:https://github.com/allurx/kit.git</connection>
@@ -56,14 +53,6 @@
         <system>GitHub Issues</system>
         <url>https://github.com/allurx/kit/issues</url>
     </issueManagement>
-
-    <developers>
-        <developer>
-            <name>allurx</name>
-            <email>allurx.zyc@gmail.com</email>
-            <url>https://www.allurx.io</url>
-        </developer>
-    </developers>
 
     <dependencyManagement>
         <dependencies>

@@ -1,4 +1,7 @@
 @echo off
+rem Copyright 2024 allurx
+rem SPDX-License-Identifier: Apache-2.0
+
 rem Manual example: opens Telegram using a profile within the persistent user data directory below.
 rem Adjust the machine-specific directory and profile before use; browser data remains after exit.
 rem --profile-directory selects a profile within that directory, not a separate browser data directory.
