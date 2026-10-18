@@ -9,7 +9,7 @@ SPDX-License-Identifier: Apache-2.0
     <parent>
         <groupId>io.allurx.kit</groupId>
         <artifactId>kit</artifactId>
-        <version>3.0.2</version>
+        <version>3.0.3</version>
     </parent>
 
     <artifactId>kit-mybatis</artifactId>
